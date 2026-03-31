@@ -16,6 +16,10 @@
   transition: flex 250ms ease-out;
 }
 
+.chat--with-live-view .chat-main {
+  min-width: 320px;
+}
+
 .chat-sidebar {
   flex: 1;
   min-width: 300px;
@@ -24,6 +28,10 @@
   flex-direction: column;
   overflow: hidden;
   animation: slide-in 200ms ease-out;
+}
+
+.chat--with-live-view .chat-sidebar {
+  min-width: 260px;
 }
 
 @keyframes slide-in {

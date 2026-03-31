@@ -272,6 +272,15 @@ export function renderChatControls(state: AppViewState) {
         ${focusIcon}
       </button>
       <button
+        class="btn btn--sm btn--icon ${state.browserLiveViewOpen ? "active" : ""}"
+        ?disabled=${!state.connected}
+        @click=${() => state.handleToggleBrowserLiveView()}
+        aria-pressed=${state.browserLiveViewOpen}
+        title=${state.browserLiveViewOpen ? "Hide browser live view" : "Show browser live view"}
+      >
+        ${icons.monitor}
+      </button>
+      <button
         class="btn btn--sm btn--icon ${hideCron ? "active" : ""}"
         @click=${() => {
           state.sessionsHideCron = !hideCron;

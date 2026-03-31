@@ -53,27 +53,32 @@ export type ChatProps = {
   disabledReason: string | null;
   error: string | null;
   sessions: SessionsListResult | null;
-  // Focus mode
   focusMode: boolean;
-  // Sidebar state
+  liveViewOpen?: boolean;
+  liveViewBusy?: boolean;
+  liveViewConnected?: boolean;
+  liveViewError?: string | null;
+  liveViewImageUrl?: string | null;
+  liveViewCurrentUrl?: string;
+  liveViewFrameCount?: number;
+  liveViewLastFrameAt?: number | null;
+  liveViewFps?: number;
   sidebarOpen?: boolean;
   sidebarContent?: string | null;
   sidebarError?: string | null;
   splitRatio?: number;
   assistantName: string;
   assistantAvatar: string | null;
-  // Image attachments
   attachments?: ChatAttachment[];
   onAttachmentsChange?: (attachments: ChatAttachment[]) => void;
-  // Scroll control
   showNewMessages?: boolean;
   onScrollToBottom?: () => void;
-  // Event handlers
   onRefresh: () => void;
   onToggleFocusMode: () => void;
   onDraftChange: (next: string) => void;
   onSend: () => void;
   onAbort?: () => void;
+  onToggleLiveView?: () => void;
   onQueueRemove: (id: string) => void;
   onNewSession: () => void;
   onOpenSidebar?: (content: string) => void;
@@ -95,7 +100,6 @@ function renderCompactionIndicator(status: CompactionIndicatorStatus | null | un
     return nothing;
   }
 
-  // Show "compacting..." while active
   if (status.active) {
     return html`
       <div class="compaction-indicator compaction-indicator--active" role="status" aria-live="polite">
@@ -104,7 +108,6 @@ function renderCompactionIndicator(status: CompactionIndicatorStatus | null | un
     `;
   }
 
-  // Show "compaction complete" briefly after completion
   if (status.completedAt) {
     const elapsed = Date.now() - status.completedAt;
     if (elapsed < COMPACTION_TOAST_DURATION_MS) {
@@ -136,7 +139,7 @@ function renderFallbackIndicator(status: FallbackIndicatorStatus | null | undefi
     status.attempts.length > 0 ? `Attempts: ${status.attempts.slice(0, 3).join(" | ")}` : null,
   ]
     .filter(Boolean)
-    .join(" • ");
+    .join(" | ");
   const message =
     phase === "cleared"
       ? `Fallback cleared: ${status.selected}`
@@ -147,12 +150,7 @@ function renderFallbackIndicator(status: FallbackIndicatorStatus | null | undefi
       : "compaction-indicator compaction-indicator--fallback";
   const icon = phase === "cleared" ? icons.check : icons.brain;
   return html`
-    <div
-      class=${className}
-      role="status"
-      aria-live="polite"
-      title=${details}
-    >
+    <div class=${className} role="status" aria-live="polite" title=${details}>
       ${icon} ${message}
     </div>
   `;
@@ -214,11 +212,7 @@ function renderAttachmentPreview(props: ChatProps) {
       ${attachments.map(
         (att) => html`
           <div class="chat-attachment">
-            <img
-              src=${att.dataUrl}
-              alt="Attachment preview"
-              class="chat-attachment__img"
-            />
+            <img src=${att.dataUrl} alt="Attachment preview" class="chat-attachment__img" />
             <button
               class="chat-attachment__remove"
               type="button"
@@ -234,6 +228,74 @@ function renderAttachmentPreview(props: ChatProps) {
         `,
       )}
     </div>
+  `;
+}
+
+function renderLiveViewPanel(props: ChatProps) {
+  if (!props.liveViewOpen) {
+    return nothing;
+  }
+
+  const hasFrame = typeof props.liveViewImageUrl === "string" && props.liveViewImageUrl.length > 0;
+  const statusClass = props.liveViewConnected ? "live" : "idle";
+  const statusLabel = props.liveViewConnected ? "LIVE" : "WAITING";
+  const footerText = props.liveViewLastFrameAt
+    ? `Updated ${new Date(props.liveViewLastFrameAt).toLocaleTimeString()}`
+    : "No frame captured yet";
+
+  return html`
+    <aside class="chat-live-panel" aria-label="Browser live view">
+      <div class="chat-live-panel__header">
+        <div class="chat-live-panel__status">
+          <span class="chat-live-panel__dot chat-live-panel__dot--${statusClass}"></span>
+          <span class="chat-live-panel__label">${statusLabel}</span>
+          <span class="chat-live-panel__metrics">${props.liveViewFps ?? 0} fps</span>
+        </div>
+        <button
+          class="btn btn--sm btn--icon"
+          type="button"
+          aria-label="Hide browser live view"
+          @click=${() => props.onToggleLiveView?.()}
+        >
+          ${icons.x}
+        </button>
+      </div>
+
+      <div class="chat-live-panel__url" title=${props.liveViewCurrentUrl ?? ""}>
+        ${props.liveViewCurrentUrl || "Waiting for browser navigation..."}
+      </div>
+
+      <div class="chat-live-panel__body">
+        ${
+          hasFrame
+            ? html`
+              <img
+                class="chat-live-panel__image"
+                src=${props.liveViewImageUrl!}
+                alt="Live browser preview"
+              />
+            `
+            : html`
+              <div class="chat-live-panel__placeholder">
+                <div class="chat-live-panel__placeholder-icon">${icons.monitor}</div>
+                <div>Browser preview will appear here.</div>
+                ${
+                  props.liveViewBusy
+                    ? html`<div class="chat-live-panel__placeholder-subtle">Capturing frame...</div>`
+                    : nothing
+                }
+              </div>
+            `
+        }
+      </div>
+
+      <div class="chat-live-panel__footer">
+        <span>${footerText}</span>
+        <span>${props.liveViewFrameCount ?? 0} frames</span>
+      </div>
+
+      ${props.liveViewError ? html`<div class="callout">${props.liveViewError}</div>` : nothing}
+    </aside>
   `;
 }
 
@@ -253,22 +315,18 @@ export function renderChat(props: ChatProps) {
   const composePlaceholder = props.connected
     ? hasAttachments
       ? "Add a message or paste more images..."
-      : "Message (↩ to send, Shift+↩ for line breaks, paste images)"
-    : "Connect to the gateway to start chatting…";
+      : "Message (Enter to send, Shift+Enter for line breaks, paste images)"
+    : "Connect to the gateway to start chatting...";
 
   const splitRatio = props.splitRatio ?? 0.6;
   const sidebarOpen = Boolean(props.sidebarOpen && props.onCloseSidebar);
+  const liveViewOpen = Boolean(props.liveViewOpen && props.onToggleLiveView);
   const thread = html`
-    <div
-      class="chat-thread"
-      role="log"
-      aria-live="polite"
-      @scroll=${props.onChatScroll}
-    >
+    <div class="chat-thread" role="log" aria-live="polite" @scroll=${props.onChatScroll}>
       ${
         props.loading
           ? html`
-              <div class="muted">Loading chat…</div>
+              <div class="muted">Loading chat...</div>
             `
           : nothing
       }
@@ -314,166 +372,160 @@ export function renderChat(props: ChatProps) {
     </div>
   `;
 
-  return html`
-    <section class="card chat">
-      ${props.disabledReason ? html`<div class="callout">${props.disabledReason}</div>` : nothing}
+  const chatMain = html`
+    ${props.disabledReason ? html`<div class="callout">${props.disabledReason}</div>` : nothing}
 
-      ${props.error ? html`<div class="callout danger">${props.error}</div>` : nothing}
+    ${props.error ? html`<div class="callout danger">${props.error}</div>` : nothing}
 
-      ${
-        props.focusMode
-          ? html`
-            <button
-              class="chat-focus-exit"
-              type="button"
-              @click=${props.onToggleFocusMode}
-              aria-label="Exit focus mode"
-              title="Exit focus mode"
-            >
-              ${icons.x}
-            </button>
-          `
-          : nothing
-      }
+    ${
+      props.focusMode
+        ? html`
+          <button
+            class="chat-focus-exit"
+            type="button"
+            @click=${props.onToggleFocusMode}
+            aria-label="Exit focus mode"
+            title="Exit focus mode"
+          >
+            ${icons.x}
+          </button>
+        `
+        : nothing
+    }
 
+    <div class="chat-split-container ${sidebarOpen ? "chat-split-container--open" : ""}">
       <div
-        class="chat-split-container ${sidebarOpen ? "chat-split-container--open" : ""}"
+        class="chat-main"
+        style="flex: ${sidebarOpen ? `0 0 ${splitRatio * 100}%` : "1 1 100%"}"
       >
-        <div
-          class="chat-main"
-          style="flex: ${sidebarOpen ? `0 0 ${splitRatio * 100}%` : "1 1 100%"}"
-        >
-          ${thread}
-        </div>
-
-        ${
-          sidebarOpen
-            ? html`
-              <resizable-divider
-                .splitRatio=${splitRatio}
-                @resize=${(e: CustomEvent) => props.onSplitRatioChange?.(e.detail.splitRatio)}
-              ></resizable-divider>
-              <div class="chat-sidebar">
-                ${renderMarkdownSidebar({
-                  content: props.sidebarContent ?? null,
-                  error: props.sidebarError ?? null,
-                  onClose: props.onCloseSidebar!,
-                  onViewRawText: () => {
-                    if (!props.sidebarContent || !props.onOpenSidebar) {
-                      return;
-                    }
-                    props.onOpenSidebar(`\`\`\`\n${props.sidebarContent}\n\`\`\``);
-                  },
-                })}
-              </div>
-            `
-            : nothing
-        }
+        ${thread}
       </div>
 
       ${
-        props.queue.length
+        sidebarOpen
           ? html`
-            <div class="chat-queue" role="status" aria-live="polite">
-              <div class="chat-queue__title">Queued (${props.queue.length})</div>
-              <div class="chat-queue__list">
-                ${props.queue.map(
-                  (item) => html`
-                    <div class="chat-queue__item">
-                      <div class="chat-queue__text">
-                        ${
-                          item.text ||
-                          (item.attachments?.length ? `Image (${item.attachments.length})` : "")
-                        }
-                      </div>
-                      <button
-                        class="btn chat-queue__remove"
-                        type="button"
-                        aria-label="Remove queued message"
-                        @click=${() => props.onQueueRemove(item.id)}
-                      >
-                        ${icons.x}
-                      </button>
-                    </div>
-                  `,
-                )}
-              </div>
+            <resizable-divider
+              .splitRatio=${splitRatio}
+              @resize=${(e: CustomEvent) => props.onSplitRatioChange?.(e.detail.splitRatio)}
+            ></resizable-divider>
+            <div class="chat-sidebar">
+              ${renderMarkdownSidebar({
+                content: props.sidebarContent ?? null,
+                error: props.sidebarError ?? null,
+                onClose: props.onCloseSidebar!,
+                onViewRawText: () => {
+                  if (!props.sidebarContent || !props.onOpenSidebar) {
+                    return;
+                  }
+                  props.onOpenSidebar(`\`\`\`\n${props.sidebarContent}\n\`\`\``);
+                },
+              })}
             </div>
           `
           : nothing
       }
+    </div>
 
-      ${renderFallbackIndicator(props.fallbackStatus)}
-      ${renderCompactionIndicator(props.compactionStatus)}
-
-      ${
-        props.showNewMessages
-          ? html`
-            <button
-              class="btn chat-new-messages"
-              type="button"
-              @click=${props.onScrollToBottom}
-            >
-              New messages ${icons.arrowDown}
-            </button>
-          `
-          : nothing
-      }
-
-      <div class="chat-compose">
-        ${renderAttachmentPreview(props)}
-        <div class="chat-compose__row">
-          <label class="field chat-compose__field">
-            <span>Message</span>
-            <textarea
-              ${ref((el) => el && adjustTextareaHeight(el as HTMLTextAreaElement))}
-              .value=${props.draft}
-              dir=${detectTextDirection(props.draft)}
-              ?disabled=${!props.connected}
-              @keydown=${(e: KeyboardEvent) => {
-                if (e.key !== "Enter") {
-                  return;
-                }
-                if (e.isComposing || e.keyCode === 229) {
-                  return;
-                }
-                if (e.shiftKey) {
-                  return;
-                } // Allow Shift+Enter for line breaks
-                if (!props.connected) {
-                  return;
-                }
-                e.preventDefault();
-                if (canCompose) {
-                  props.onSend();
-                }
-              }}
-              @input=${(e: Event) => {
-                const target = e.target as HTMLTextAreaElement;
-                adjustTextareaHeight(target);
-                props.onDraftChange(target.value);
-              }}
-              @paste=${(e: ClipboardEvent) => handlePaste(e, props)}
-              placeholder=${composePlaceholder}
-            ></textarea>
-          </label>
-          <div class="chat-compose__actions">
-            <button
-              class="btn"
-              ?disabled=${!props.connected || (!canAbort && props.sending)}
-              @click=${canAbort ? props.onAbort : props.onNewSession}
-            >
-              ${canAbort ? "Stop" : "New session"}
-            </button>
-            <button
-              class="btn primary"
-              ?disabled=${!props.connected}
-              @click=${props.onSend}
-            >
-              ${isBusy ? "Queue" : "Send"}<kbd class="btn-kbd">↵</kbd>
-            </button>
+    ${
+      props.queue.length
+        ? html`
+          <div class="chat-queue" role="status" aria-live="polite">
+            <div class="chat-queue__title">Queued (${props.queue.length})</div>
+            <div class="chat-queue__list">
+              ${props.queue.map(
+                (item) => html`
+                  <div class="chat-queue__item">
+                    <div class="chat-queue__text">
+                      ${
+                        item.text ||
+                        (item.attachments?.length ? `Image (${item.attachments.length})` : "")
+                      }
+                    </div>
+                    <button
+                      class="btn chat-queue__remove"
+                      type="button"
+                      aria-label="Remove queued message"
+                      @click=${() => props.onQueueRemove(item.id)}
+                    >
+                      ${icons.x}
+                    </button>
+                  </div>
+                `,
+              )}
+            </div>
           </div>
+        `
+        : nothing
+    }
+
+    ${renderFallbackIndicator(props.fallbackStatus)}
+    ${renderCompactionIndicator(props.compactionStatus)}
+
+    ${
+      props.showNewMessages
+        ? html`
+          <button class="btn chat-new-messages" type="button" @click=${props.onScrollToBottom}>
+            New messages ${icons.arrowDown}
+          </button>
+        `
+        : nothing
+    }
+
+    <div class="chat-compose">
+      ${renderAttachmentPreview(props)}
+      <div class="chat-compose__row">
+        <label class="field chat-compose__field">
+          <span>Message</span>
+          <textarea
+            ${ref((el) => el && adjustTextareaHeight(el as HTMLTextAreaElement))}
+            .value=${props.draft}
+            dir=${detectTextDirection(props.draft)}
+            ?disabled=${!props.connected}
+            @keydown=${(e: KeyboardEvent) => {
+              if (e.key !== "Enter") {
+                return;
+              }
+              if (e.isComposing || e.keyCode === 229) {
+                return;
+              }
+              if (e.shiftKey || !props.connected) {
+                return;
+              }
+              e.preventDefault();
+              if (canCompose) {
+                props.onSend();
+              }
+            }}
+            @input=${(e: Event) => {
+              const target = e.target as HTMLTextAreaElement;
+              adjustTextareaHeight(target);
+              props.onDraftChange(target.value);
+            }}
+            @paste=${(e: ClipboardEvent) => handlePaste(e, props)}
+            placeholder=${composePlaceholder}
+          ></textarea>
+        </label>
+        <div class="chat-compose__actions">
+          <button
+            class="btn"
+            ?disabled=${!props.connected || (!canAbort && props.sending)}
+            @click=${canAbort ? props.onAbort : props.onNewSession}
+          >
+            ${canAbort ? "Stop" : "New session"}
+          </button>
+          <button class="btn primary" ?disabled=${!props.connected} @click=${props.onSend}>
+            ${isBusy ? "Queue" : "Send"}<kbd class="btn-kbd">Enter</kbd>
+          </button>
         </div>
+      </div>
+    </div>
+  `;
+
+  return html`
+    <section class="card chat ${liveViewOpen ? "chat--with-live-view" : ""}">
+      <div class="chat-live-shell ${liveViewOpen ? "chat-live-shell--open" : ""}">
+        <div class="chat-live-main">${chatMain}</div>
+        ${renderLiveViewPanel(props)}
       </div>
     </section>
   `;

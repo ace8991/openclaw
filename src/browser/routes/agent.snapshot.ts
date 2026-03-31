@@ -48,6 +48,22 @@ async function saveBrowserMediaResponse(params: {
   });
 }
 
+function sendBrowserInlineMediaResponse(params: {
+  res: BrowserResponse;
+  buffer: Buffer;
+  contentType: string;
+  targetId: string;
+  url: string;
+}) {
+  params.res.json({
+    ok: true,
+    data: params.buffer.toString("base64"),
+    mimeType: params.contentType,
+    targetId: params.targetId,
+    url: params.url,
+  });
+}
+
 /** Resolve the correct targetId after a navigation that may trigger a renderer swap. */
 export async function resolveTargetIdAfterNavigate(opts: {
   oldTargetId: string;
@@ -149,6 +165,7 @@ export function registerBrowserAgentSnapshotRoutes(
     const fullPage = toBoolean(body.fullPage) ?? false;
     const ref = toStringOrEmpty(body.ref) || undefined;
     const element = toStringOrEmpty(body.element) || undefined;
+    const inline = toBoolean(body.inline) ?? false;
     const type = body.type === "jpeg" ? "jpeg" : "png";
 
     if (fullPage && (ref || element)) {
@@ -194,10 +211,21 @@ export function registerBrowserAgentSnapshotRoutes(
           maxSide: DEFAULT_BROWSER_SCREENSHOT_MAX_SIDE,
           maxBytes: DEFAULT_BROWSER_SCREENSHOT_MAX_BYTES,
         });
+        const contentType = normalized.contentType ?? `image/${type}`;
+        if (inline) {
+          sendBrowserInlineMediaResponse({
+            res,
+            buffer: normalized.buffer,
+            contentType,
+            targetId: tab.targetId,
+            url: tab.url,
+          });
+          return;
+        }
         await saveBrowserMediaResponse({
           res,
           buffer: normalized.buffer,
-          contentType: normalized.contentType ?? `image/${type}`,
+          contentType,
           maxBytes: DEFAULT_BROWSER_SCREENSHOT_MAX_BYTES,
           targetId: tab.targetId,
           url: tab.url,

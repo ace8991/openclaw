@@ -1,0 +1,24 @@
+{
+  "id": "desktop-commander",
+  "name": "Desktop Commander",
+  "description": "Desktop Commander style file, shell, process, and system tools for OpenClaw.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "allowedPaths": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Absolute or user-relative roots the file tools are allowed to touch."
+      },
+      "confirmDestructive": {
+        "type": "boolean",
+        "description": "Require confirm=true on destructive operations."
+      },
+      "logCommands": {
+        "type": "boolean",
+        "description": "Log writes, moves, kills, and shell command executions."
+      }
+    }
+  }
+}

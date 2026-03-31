@@ -66,6 +66,15 @@ export type AppViewState = {
   chatThinkingLevel: string | null;
   chatQueue: ChatQueueItem[];
   chatManualRefreshInFlight: boolean;
+  browserLiveViewOpen: boolean;
+  browserLiveViewBusy: boolean;
+  browserLiveViewConnected: boolean;
+  browserLiveViewError: string | null;
+  browserLiveViewImageUrl: string | null;
+  browserLiveViewCurrentUrl: string;
+  browserLiveViewFrameCount: number;
+  browserLiveViewLastFrameAt: number | null;
+  browserLiveViewFps: number;
   nodesLoading: boolean;
   nodes: Array<Record<string, unknown>>;
   chatNewMessagesBelow: boolean;
@@ -318,4 +327,5 @@ export type AppViewState = {
     handleOpenSidebar: (content: string) => void;
     handleCloseSidebar: () => void;
     handleSplitRatioChange: (ratio: number) => void;
+    handleToggleBrowserLiveView: () => void;
   };

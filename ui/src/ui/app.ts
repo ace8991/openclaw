@@ -19,6 +19,11 @@ import {
   handleSendChat as handleSendChatInternal,
   removeQueuedMessage as removeQueuedMessageInternal,
 } from "./app-chat.ts";
+import {
+  stopBrowserLiveViewPolling as stopBrowserLiveViewPollingInternal,
+  syncBrowserLiveViewPolling as syncBrowserLiveViewPollingInternal,
+  toggleBrowserLiveView as toggleBrowserLiveViewInternal,
+} from "./app-browser-live-view.ts";
 import { DEFAULT_CRON_FORM, DEFAULT_LOG_LEVEL_FILTERS } from "./app-defaults.ts";
 import type { EventLogEntry } from "./app-events.ts";
 import { connectGateway as connectGatewayInternal } from "./app-gateway.ts";
@@ -152,6 +157,15 @@ export class OpenClawApp extends LitElement {
   @state() chatQueue: ChatQueueItem[] = [];
   @state() chatAttachments: ChatAttachment[] = [];
   @state() chatManualRefreshInFlight = false;
+  @state() browserLiveViewOpen = false;
+  @state() browserLiveViewBusy = false;
+  @state() browserLiveViewConnected = false;
+  @state() browserLiveViewError: string | null = null;
+  @state() browserLiveViewImageUrl: string | null = null;
+  @state() browserLiveViewCurrentUrl = "";
+  @state() browserLiveViewFrameCount = 0;
+  @state() browserLiveViewLastFrameAt: number | null = null;
+  @state() browserLiveViewFps = 0;
   // Sidebar state for tool output viewing
   @state() sidebarOpen = false;
   @state() sidebarContent: string | null = null;
@@ -386,6 +400,8 @@ export class OpenClawApp extends LitElement {
   private logsScrollFrame: number | null = null;
   private toolStreamById = new Map<string, ToolStreamEntry>();
   private toolStreamOrder: string[] = [];
+  browserLiveViewPollTimer: number | null = null;
+  browserLiveViewFrameTimes: number[] = [];
   refreshSessionsAfterChat = new Set<string>();
   basePath = "";
   private popStateHandler = () =>
@@ -408,12 +424,20 @@ export class OpenClawApp extends LitElement {
   }
 
   disconnectedCallback() {
+    stopBrowserLiveViewPollingInternal(this, { clearFrame: true });
     handleDisconnected(this as unknown as Parameters<typeof handleDisconnected>[0]);
     super.disconnectedCallback();
   }
 
   protected updated(changed: Map<PropertyKey, unknown>) {
     handleUpdated(this as unknown as Parameters<typeof handleUpdated>[0], changed);
+    if (
+      changed.has("browserLiveViewOpen") ||
+      changed.has("connected") ||
+      changed.has("tab")
+    ) {
+      syncBrowserLiveViewPollingInternal(this);
+    }
   }
 
   connect() {
@@ -613,6 +637,10 @@ export class OpenClawApp extends LitElement {
     const newRatio = Math.max(0.4, Math.min(0.7, ratio));
     this.splitRatio = newRatio;
     this.applySettings({ ...this.settings, splitRatio: newRatio });
+  }
+
+  handleToggleBrowserLiveView() {
+    toggleBrowserLiveViewInternal(this);
   }
 
   render() {

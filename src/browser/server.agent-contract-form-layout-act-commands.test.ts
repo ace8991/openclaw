@@ -233,6 +233,19 @@ describe("browser control server", () => {
     });
     expect(shot.ok).toBe(true);
     expect(typeof shot.path).toBe("string");
+
+    const inlineShot = await postJson<{ ok: boolean; data?: string; mimeType?: string }>(
+      `${base}/screenshot`,
+      {
+        element: "body",
+        type: "jpeg",
+        inline: true,
+      },
+    );
+    expect(inlineShot.ok).toBe(true);
+    expect(typeof inlineShot.data).toBe("string");
+    expect(inlineShot.data && inlineShot.data.length > 0).toBe(true);
+    expect(inlineShot.mimeType).toMatch(/^image\/(jpeg|png)$/);
   });
 
   it("blocks file chooser traversal / absolute paths outside uploads dir", async () => {
