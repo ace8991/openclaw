@@ -11,6 +11,7 @@ import type { OpenClawApp } from "./app.ts";
 import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-identity.ts";
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import { loadAgents } from "./controllers/agents.ts";
+import { loadApiKeys } from "./controllers/api-keys.ts";
 import { loadChannels } from "./controllers/channels.ts";
 import { loadConfig, loadConfigSchema } from "./controllers/config.ts";
 import { loadCronJobs, loadCronRuns, loadCronStatus } from "./controllers/cron.ts";
@@ -219,6 +220,9 @@ export async function refreshActiveTab(host: SettingsHost) {
   }
   if (host.tab === "channels") {
     await loadChannelsTab(host);
+  }
+  if (host.tab === "apiKeys") {
+    await loadApiKeys(host as unknown as Parameters<typeof loadApiKeys>[0]);
   }
   if (host.tab === "instances") {
     await loadPresence(host as unknown as OpenClawApp);

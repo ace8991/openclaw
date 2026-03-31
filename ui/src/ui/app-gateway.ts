@@ -1,5 +1,7 @@
 import {
+  GATEWAY_EVENT_SECRETS_RELOADED,
   GATEWAY_EVENT_UPDATE_AVAILABLE,
+  type GatewaySecretsReloadedEventPayload,
   type GatewayUpdateAvailableEventPayload,
 } from "../../../src/gateway/events.js";
 import { CHAT_SESSIONS_ACTIVE_MINUTES, flushChatQueueForEvent } from "./app-chat.ts";
@@ -16,6 +18,7 @@ import { shouldReloadHistoryForFinalEvent } from "./chat-event-reload.ts";
 import { formatConnectError } from "./connect-error.ts";
 import { loadAgents } from "./controllers/agents.ts";
 import { loadAssistantIdentity } from "./controllers/assistant-identity.ts";
+import { handleSecretsReloadedEvent, loadApiKeys } from "./controllers/api-keys.ts";
 import { loadChatHistory } from "./controllers/chat.ts";
 import { handleChatEvent, type ChatEventPayload } from "./controllers/chat.ts";
 import { loadDevices } from "./controllers/devices.ts";
@@ -219,6 +222,9 @@ export function connectGateway(host: GatewayHost) {
       void loadHealthState(host as unknown as OpenClawApp);
       void loadNodes(host as unknown as OpenClawApp, { quiet: true });
       void loadDevices(host as unknown as OpenClawApp, { quiet: true });
+      if (hello.features?.methods?.includes("keys.list")) {
+        void loadApiKeys(host as unknown as Parameters<typeof loadApiKeys>[0]);
+      }
       void refreshActiveTab(host as unknown as Parameters<typeof refreshActiveTab>[0]);
     },
     onClose: ({ code, reason, error }) => {
@@ -369,6 +375,17 @@ function handleGatewayEventUnsafe(host: GatewayHost, evt: GatewayEventFrame) {
     (host as GatewayHostWithShutdownMessage).pendingShutdownMessage = shutdownMessage;
     host.lastError = shutdownMessage;
     host.lastErrorCode = null;
+    return;
+  }
+
+  if (evt.event === GATEWAY_EVENT_SECRETS_RELOADED) {
+    handleSecretsReloadedEvent(
+      host as unknown as Parameters<typeof handleSecretsReloadedEvent>[0],
+      evt.payload as GatewaySecretsReloadedEventPayload | undefined,
+    );
+    if (host.connected) {
+      void loadApiKeys(host as unknown as Parameters<typeof loadApiKeys>[0]);
+    }
     return;
   }
 

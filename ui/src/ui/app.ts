@@ -55,6 +55,11 @@ import type { AppViewState } from "./app-view-state.ts";
 import { normalizeAssistantIdentity } from "./assistant-identity.ts";
 import { exportChatMarkdown } from "./chat/export.ts";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity.ts";
+import type {
+  ApiKeyFormState,
+  ApiKeyListEntry,
+  ApiKeysToast,
+} from "./controllers/api-keys.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
@@ -166,6 +171,26 @@ export class OpenClawApp extends LitElement {
   @state() chatAttachments: ChatAttachment[] = [];
   @state() chatManualRefreshInFlight = false;
   @state() navDrawerOpen = false;
+  @state() apiKeysLoading = false;
+  @state() apiKeysSaving = false;
+  @state() apiKeysError: string | null = null;
+  @state() apiKeysEntries: ApiKeyListEntry[] = [];
+  @state() apiKeysModelCatalog: ModelCatalogEntry[] = [];
+  @state() apiKeysDefaultModel = "";
+  @state() apiKeysActiveProvider = "lmstudio";
+  @state() apiKeysLastReloadAt: number | null = null;
+  @state() apiKeysReveal: Record<string, boolean> = {};
+  @state() apiKeysFormOpen = false;
+  @state() apiKeysForm: ApiKeyFormState = {
+    profileId: null,
+    provider: "lmstudio",
+    label: "",
+    key: "",
+    baseUrl: "",
+  };
+  @state() apiKeysFormError: string | null = null;
+  @state() apiKeysToast: ApiKeysToast | null = null;
+  @state() apiKeysInvalidCount = 0;
 
   onSlashAction?: (action: string) => void;
 
@@ -345,6 +370,7 @@ export class OpenClawApp extends LitElement {
 
   // Non-reactive (don’t trigger renders just for timer bookkeeping).
   usageQueryDebounceTimer: number | null = null;
+  apiKeysToastTimer: number | null = null;
 
   @state() cronLoading = false;
   @state() cronJobsLoadingMore = false;

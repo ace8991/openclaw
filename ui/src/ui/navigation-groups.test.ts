@@ -54,6 +54,19 @@ describe("TAB_GROUPS", () => {
     ]);
   });
 
+  it("publishes the API keys control tab between channels and instances", () => {
+    const control = navigation.TAB_GROUPS.find((group) => group.label === "control");
+    expect(control?.tabs).toEqual([
+      "overview",
+      "channels",
+      "apiKeys",
+      "instances",
+      "sessions",
+      "usage",
+      "cron",
+    ]);
+  });
+
   it("routes every published settings slice", () => {
     expect(navigation.tabFromPath("/communications")).toBe("communications");
     expect(navigation.tabFromPath("/appearance")).toBe("appearance");
@@ -61,5 +74,6 @@ describe("TAB_GROUPS", () => {
     expect(navigation.tabFromPath("/infrastructure")).toBe("infrastructure");
     expect(navigation.tabFromPath("/ai-agents")).toBe("aiAgents");
     expect(navigation.tabFromPath("/config")).toBe("config");
+    expect(navigation.tabFromPath("/api-keys")).toBe("apiKeys");
   });
 });

@@ -21,6 +21,17 @@ import { loadAgentFileContent, loadAgentFiles, saveAgentFile } from "./controlle
 import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-identity.ts";
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import { loadAgents, loadToolsCatalog, saveAgentsConfig } from "./controllers/agents.ts";
+import {
+  closeApiKeyForm,
+  deleteApiKey,
+  openApiKeyForm,
+  reloadApiKeys,
+  saveApiKey,
+  setActiveApiKey,
+  setDefaultModel,
+  toggleApiKeyMask,
+  updateApiKeyForm,
+} from "./controllers/api-keys.ts";
 import { loadChannels } from "./controllers/channels.ts";
 import { loadChatHistory } from "./controllers/chat.ts";
 import {
@@ -122,6 +133,7 @@ function createLazy<T>(loader: () => Promise<T>): () => T | null {
 }
 
 const lazyAgents = createLazy(() => import("./views/agents.ts"));
+const lazyApiKeys = createLazy(() => import("./views/api-keys.ts"));
 const lazyChannels = createLazy(() => import("./views/channels.ts"));
 const lazyCron = createLazy(() => import("./views/cron.ts"));
 const lazyDebug = createLazy(() => import("./views/debug.ts"));
@@ -701,6 +713,40 @@ export function renderApp(state: AppViewState) {
                   onNostrProfileSave: () => state.handleNostrProfileSave(),
                   onNostrProfileImport: () => state.handleNostrProfileImport(),
                   onNostrProfileToggleAdvanced: () => state.handleNostrProfileToggleAdvanced(),
+                }),
+              )
+            : nothing
+        }
+
+        ${
+          state.tab === "apiKeys"
+            ? lazyRender(lazyApiKeys, (m) =>
+                m.renderApiKeys({
+                  connected: state.connected,
+                  loading: state.apiKeysLoading,
+                  saving: state.apiKeysSaving,
+                  error: state.apiKeysError,
+                  entries: state.apiKeysEntries,
+                  modelCatalog: state.apiKeysModelCatalog,
+                  defaultModel: state.apiKeysDefaultModel,
+                  activeProvider: state.apiKeysActiveProvider,
+                  lastReloadAt: state.apiKeysLastReloadAt,
+                  reveal: state.apiKeysReveal,
+                  formOpen: state.apiKeysFormOpen,
+                  form: state.apiKeysForm,
+                  formError: state.apiKeysFormError,
+                  toast: state.apiKeysToast,
+                  invalidCount: state.apiKeysInvalidCount,
+                  onReload: () => reloadApiKeys(state),
+                  onOpenAdd: (provider) => openApiKeyForm(state, { provider }),
+                  onOpenEdit: (entry) => openApiKeyForm(state, { entry }),
+                  onCloseForm: () => closeApiKeyForm(state),
+                  onFormPatch: (patch) => updateApiKeyForm(state, patch),
+                  onSave: () => saveApiKey(state),
+                  onDelete: (profileId) => deleteApiKey(state, profileId),
+                  onSetActive: (profileId) => setActiveApiKey(state, profileId),
+                  onToggleMask: (profileId) => toggleApiKeyMask(state, profileId),
+                  onSetDefaultModel: (modelId) => setDefaultModel(state, modelId),
                 }),
               )
             : nothing

@@ -600,6 +600,27 @@
   white-space: nowrap;
 }
 
+.nav-item__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: auto;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.nav-item__badge--danger {
+  color: var(--danger);
+  background: var(--danger-subtle);
+  border-color: color-mix(in srgb, var(--danger) 24%, transparent);
+}
+
 .nav-item:hover {
   color: var(--text);
   background: color-mix(in srgb, var(--bg-hover) 84%, transparent);
@@ -671,6 +692,17 @@
 .sidebar--collapsed .nav-item__text,
 .sidebar--collapsed .nav-item__external-icon {
   display: none;
+}
+
+.sidebar--collapsed .nav-item__badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  font-size: 9px;
+  margin-left: 0;
 }
 
 .sidebar--collapsed .nav-item--active::before,

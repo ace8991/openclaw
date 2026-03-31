@@ -44,6 +44,17 @@ import {
   AgentWaitParamsSchema,
   type ChannelsLogoutParams,
   ChannelsLogoutParamsSchema,
+  type KeysDeleteParams,
+  KeysDeleteParamsSchema,
+  KeysListParamsSchema,
+  type KeysSetActiveParams,
+  KeysSetActiveParamsSchema,
+  type KeysSetParams,
+  KeysSetParamsSchema,
+  KeysReloadParamsSchema,
+  MaskedKeyEntrySchema,
+  type ModelSetDefaultParams,
+  ModelSetDefaultParamsSchema,
   type TalkConfigParams,
   TalkConfigParamsSchema,
   type TalkConfigResult,
@@ -387,6 +398,16 @@ export const validateChannelsStatusParams = ajv.compile<ChannelsStatusParams>(
 export const validateChannelsLogoutParams = ajv.compile<ChannelsLogoutParams>(
   ChannelsLogoutParamsSchema,
 );
+export const validateKeysListParams = ajv.compile(KeysListParamsSchema);
+export const validateKeysSetParams = ajv.compile<KeysSetParams>(KeysSetParamsSchema);
+export const validateKeysDeleteParams = ajv.compile<KeysDeleteParams>(KeysDeleteParamsSchema);
+export const validateKeysSetActiveParams = ajv.compile<KeysSetActiveParams>(
+  KeysSetActiveParamsSchema,
+);
+export const validateKeysReloadParams = ajv.compile(KeysReloadParamsSchema);
+export const validateModelSetDefaultParams = ajv.compile<ModelSetDefaultParams>(
+  ModelSetDefaultParamsSchema,
+);
 export const validateModelsListParams = ajv.compile<ModelsListParams>(ModelsListParamsSchema);
 export const validateSkillsStatusParams = ajv.compile<SkillsStatusParams>(SkillsStatusParamsSchema);
 export const validateToolsCatalogParams = ajv.compile<ToolsCatalogParams>(ToolsCatalogParamsSchema);
@@ -551,6 +572,13 @@ export {
   ChannelsStatusParamsSchema,
   ChannelsStatusResultSchema,
   ChannelsLogoutParamsSchema,
+  KeysListParamsSchema,
+  KeysSetParamsSchema,
+  KeysDeleteParamsSchema,
+  KeysSetActiveParamsSchema,
+  KeysReloadParamsSchema,
+  ModelSetDefaultParamsSchema,
+  MaskedKeyEntrySchema,
   WebLoginStartParamsSchema,
   WebLoginWaitParamsSchema,
   AgentSummarySchema,
@@ -643,6 +671,10 @@ export type {
   ChannelsStatusParams,
   ChannelsStatusResult,
   ChannelsLogoutParams,
+  KeysDeleteParams,
+  KeysSetActiveParams,
+  KeysSetParams,
+  ModelSetDefaultParams,
   WebLoginStartParams,
   WebLoginWaitParams,
   AgentSummary,

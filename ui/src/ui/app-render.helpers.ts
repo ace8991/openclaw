@@ -60,6 +60,7 @@ export function renderTab(state: AppViewState, tab: Tab, opts?: { collapsed?: bo
   const href = pathForTab(tab, state.basePath);
   const isActive = state.tab === tab;
   const collapsed = opts?.collapsed ?? state.settings.navCollapsed;
+  const showBadge = tab === "apiKeys" && state.apiKeysInvalidCount > 0;
   return html`
     <a
       href=${href}
@@ -88,6 +89,14 @@ export function renderTab(state: AppViewState, tab: Tab, opts?: { collapsed?: bo
       title=${titleForTab(tab)}
     >
       <span class="nav-item__icon" aria-hidden="true">${icons[iconForTab(tab)]}</span>
+      ${
+        showBadge
+          ? html`<span
+              class="nav-item__badge nav-item__badge--danger"
+              aria-label="API key warnings"
+            >!</span>`
+          : nothing
+      }
       ${!collapsed ? html`<span class="nav-item__text">${titleForTab(tab)}</span>` : nothing}
     </a>
   `;

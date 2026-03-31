@@ -1,4 +1,6 @@
 import path from "node:path";
+import { loadAuthProfileStoreForSecretsRuntime } from "../agents/auth-profiles.js";
+import { resolveAuthStorePath } from "../agents/auth-profiles/paths.js";
 import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../agents/agent-scope.js";
 import { getActiveEmbeddedRunCount } from "../agents/pi-embedded-runner/runs.js";
 import { registerSkillsChangeListener } from "../agents/skills/refresh.js";
@@ -78,6 +80,8 @@ import { startGatewayConfigReloader } from "./config-reload.js";
 import type { ControlUiRootState } from "./control-ui.js";
 import {
   GATEWAY_EVENT_UPDATE_AVAILABLE,
+  GATEWAY_EVENT_SECRETS_RELOADED,
+  type GatewaySecretsReloadedEventPayload,
   type GatewayUpdateAvailableEventPayload,
 } from "./events.js";
 import { ExecApprovalManager } from "./exec-approval-manager.js";
@@ -98,6 +102,7 @@ import { startGatewayMaintenanceTimers } from "./server-maintenance.js";
 import { GATEWAY_EVENTS, listGatewayMethods } from "./server-methods-list.js";
 import { coreGatewayHandlers } from "./server-methods.js";
 import { createExecApprovalHandlers } from "./server-methods/exec-approval.js";
+import { createApiKeysHandlers } from "./server-methods/api-keys.js";
 import { safeParseJson } from "./server-methods/nodes.helpers.js";
 import { createSecretsHandlers } from "./server-methods/secrets.js";
 import { hasConnectedMobileNode } from "./server-mobile-nodes.js";
@@ -114,6 +119,8 @@ import { startGatewaySidecars } from "./server-startup.js";
 import { startGatewayTailscaleExposure } from "./server-tailscale.js";
 import { createWizardSessionTracker } from "./server-wizard-sessions.js";
 import { attachGatewayWsHandlers } from "./server-ws-runtime.js";
+import { applyAuthProfileConfigOverlay } from "./api-keys.shared.js";
+import { SecretsHotReloadService } from "./secrets-hot-reload.js";
 import {
   getHealthCache,
   getHealthVersion,
@@ -173,6 +180,7 @@ const logHooks = log.child("hooks");
 const logPlugins = log.child("plugins");
 const logWsControl = log.child("ws");
 const logSecrets = log.child("secrets");
+const logSecretsHotReload = log.child("secrets-hot-reload");
 const gatewayRuntime = runtimeForLogger(log);
 const canvasRuntime = runtimeForLogger(logCanvas);
 
@@ -1035,17 +1043,39 @@ export async function startGatewayServer(
   const execApprovalHandlers = createExecApprovalHandlers(execApprovalManager, {
     forwarder: execApprovalForwarder,
   });
+  const reloadSecretsRuntime = async (params: {
+    source: string;
+    sourceConfig?: OpenClawConfig;
+    changedProviders?: string[];
+    profileCount?: number;
+  }) => {
+    const active = getActiveSecretsRuntimeSnapshot();
+    const baseConfig =
+      params.sourceConfig ??
+      active?.sourceConfig ??
+      applyAuthProfileConfigOverlay(loadConfig(), loadAuthProfileStoreForSecretsRuntime());
+    const prepared = await activateRuntimeSecrets(baseConfig, {
+      reason: "reload",
+      activate: true,
+    });
+    const reloadedAt = Date.now();
+    const payload: GatewaySecretsReloadedEventPayload = {
+      reloadedAt,
+      source: params.source,
+      changedProviders: [...new Set(params.changedProviders ?? [])],
+      ...(typeof params.profileCount === "number" ? { profileCount: params.profileCount } : {}),
+      ...(prepared.warnings.length > 0 ? { warningCount: prepared.warnings.length } : {}),
+    };
+    broadcast(GATEWAY_EVENT_SECRETS_RELOADED, payload, { dropIfSlow: true });
+    return {
+      warningCount: prepared.warnings.length,
+      reloadedAt,
+    };
+  };
   const secretsHandlers = createSecretsHandlers({
     reloadSecrets: async () => {
-      const active = getActiveSecretsRuntimeSnapshot();
-      if (!active) {
-        throw new Error("Secrets runtime snapshot is not active.");
-      }
-      const prepared = await activateRuntimeSecrets(active.sourceConfig, {
-        reason: "reload",
-        activate: true,
-      });
-      return { warningCount: prepared.warnings.length };
+      const result = await reloadSecretsRuntime({ source: "secrets.reload" });
+      return { warningCount: result.warningCount };
     },
     resolveSecrets: async ({ commandName, targetIds }) => {
       const { assignments, diagnostics, inactiveRefPaths } =
@@ -1059,6 +1089,21 @@ export async function startGatewayServer(
       return { assignments, diagnostics, inactiveRefPaths };
     },
   });
+  const apiKeysHandlers = createApiKeysHandlers({
+    reloadSecretsRuntime: async ({ source }) => await reloadSecretsRuntime({ source }),
+  });
+  const secretsHotReload = new SecretsHotReloadService({
+    profilesPath: resolveAuthStorePath(),
+    logger: logSecretsHotReload,
+    applyReload: async ({ source, nextStore, changedProviders, profileCount }) =>
+      await reloadSecretsRuntime({
+        source,
+        sourceConfig: applyAuthProfileConfigOverlay(loadConfig(), nextStore),
+        changedProviders,
+        profileCount,
+      }),
+  });
+  await secretsHotReload.start();
 
   const canvasHostServerPort = (canvasHostServer as CanvasHostServer | null)?.port;
 
@@ -1146,6 +1191,7 @@ export async function startGatewayServer(
     extraHandlers: {
       ...pluginRegistry.gatewayHandlers,
       ...execApprovalHandlers,
+      ...apiKeysHandlers,
       ...secretsHandlers,
     },
     broadcast,
@@ -1347,6 +1393,7 @@ export async function startGatewayServer(
       browserAuthRateLimiter.dispose();
       stopModelPricingRefresh();
       channelHealthMonitor?.stop();
+      await secretsHotReload.stop();
       clearSecretsRuntimeSnapshot();
       await close(opts);
     },
