@@ -108,6 +108,20 @@ export const FALLBACK_TOOL_SECTIONS: AgentToolSection[] = [
     tools: [{ id: "agents_list", label: "agents_list", description: "List agents" }],
   },
   {
+    id: "desktop-commander",
+    label: "Desktop Commander",
+    source: "plugin" as const,
+    pluginId: "desktop-commander",
+    tools: [
+      { id: "dc_read_file", label: "dc_read_file", description: "Read files from the PC", source: "plugin" as const, pluginId: "desktop-commander" },
+      { id: "dc_write_file", label: "dc_write_file", description: "Write files to the PC", source: "plugin" as const, pluginId: "desktop-commander" },
+      { id: "dc_list_directory", label: "dc_list_directory", description: "List directory contents", source: "plugin" as const, pluginId: "desktop-commander" },
+      { id: "dc_execute_command", label: "dc_execute_command", description: "Execute shell commands", source: "plugin" as const, pluginId: "desktop-commander" },
+      { id: "dc_search_files", label: "dc_search_files", description: "Search files on the PC", source: "plugin" as const, pluginId: "desktop-commander" },
+      { id: "dc_get_system_info", label: "dc_get_system_info", description: "Get system information", source: "plugin" as const, pluginId: "desktop-commander" },
+    ],
+  },
+  {
     id: "media",
     label: "Media",
     tools: [{ id: "image", label: "image", description: "Image understanding" }],
