@@ -10,6 +10,15 @@ import {
   WakeParamsSchema,
 } from "./agent.js";
 import {
+  KeysDeleteParamsSchema,
+  KeysListParamsSchema,
+  KeysReloadParamsSchema,
+  KeysSetActiveParamsSchema,
+  KeysSetParamsSchema,
+  MaskedKeyEntrySchema,
+  ModelSetDefaultParamsSchema,
+} from "./api-keys.js";
+import {
   AgentSummarySchema,
   AgentsCreateParamsSchema,
   AgentsCreateResultSchema,
@@ -185,6 +194,13 @@ export const ProtocolSchemas = {
   AgentIdentityResult: AgentIdentityResultSchema,
   AgentWaitParams: AgentWaitParamsSchema,
   WakeParams: WakeParamsSchema,
+  KeysListParams: KeysListParamsSchema,
+  KeysSetParams: KeysSetParamsSchema,
+  KeysDeleteParams: KeysDeleteParamsSchema,
+  KeysSetActiveParams: KeysSetActiveParamsSchema,
+  KeysReloadParams: KeysReloadParamsSchema,
+  ModelSetDefaultParams: ModelSetDefaultParamsSchema,
+  MaskedKeyEntry: MaskedKeyEntrySchema,
   NodePairRequestParams: NodePairRequestParamsSchema,
   NodePairListParams: NodePairListParamsSchema,
   NodePairApproveParams: NodePairApproveParamsSchema,

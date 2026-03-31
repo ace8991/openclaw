@@ -23,6 +23,14 @@ describe("control UI routing", () => {
     expect(window.location.pathname).toBe("/sessions");
   });
 
+  it("hydrates the API keys tab from the location", async () => {
+    const app = mountApp("/api-keys");
+    await app.updateComplete;
+
+    expect(app.tab).toBe("apiKeys");
+    expect(window.location.pathname).toBe("/api-keys");
+  });
+
   it("respects /ui base paths", async () => {
     const app = mountApp("/ui/cron");
     await app.updateComplete;

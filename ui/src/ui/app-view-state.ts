@@ -1,6 +1,11 @@
 import type { EventLogEntry } from "./app-events.ts";
 import type { CompactionStatus, FallbackStatus } from "./app-tool-stream.ts";
 import type { CronModelSuggestionsState, CronState } from "./controllers/cron.ts";
+import type {
+  ApiKeyFormState,
+  ApiKeyListEntry,
+  ApiKeysToast,
+} from "./controllers/api-keys.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
@@ -77,6 +82,20 @@ export type AppViewState = {
   chatModelCatalog: ModelCatalogEntry[];
   chatQueue: ChatQueueItem[];
   chatManualRefreshInFlight: boolean;
+  apiKeysLoading: boolean;
+  apiKeysSaving: boolean;
+  apiKeysError: string | null;
+  apiKeysEntries: ApiKeyListEntry[];
+  apiKeysModelCatalog: ModelCatalogEntry[];
+  apiKeysDefaultModel: string;
+  apiKeysActiveProvider: string;
+  apiKeysLastReloadAt: number | null;
+  apiKeysReveal: Record<string, boolean>;
+  apiKeysFormOpen: boolean;
+  apiKeysForm: ApiKeyFormState;
+  apiKeysFormError: string | null;
+  apiKeysToast: ApiKeysToast | null;
+  apiKeysInvalidCount: number;
   nodesLoading: boolean;
   nodes: Array<Record<string, unknown>>;
   chatNewMessagesBelow: boolean;
@@ -215,6 +234,7 @@ export type AppViewState = {
   usageQuery: string;
   usageQueryDraft: string;
   usageQueryDebounceTimer: number | null;
+  apiKeysToastTimer: number | null;
   usageSessionSort: "tokens" | "cost" | "recent" | "messages" | "errors";
   usageSessionSortDir: "asc" | "desc";
   usageRecentSessions: string[];
