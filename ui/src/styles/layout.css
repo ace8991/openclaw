@@ -1224,3 +1224,54 @@
   overflow: hidden;
 }
 /* ¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦ */
+
+/* ¦¦ New Chat Button in Sidebar ¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦ */
+.nav-item-chat-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.nav-item-chat-row .nav-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-new-chat-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--border-radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.12s, color 0.12s;
+  margin-right: 4px;
+}
+
+.nav-item-chat-row:hover .nav-new-chat-btn {
+  opacity: 1;
+}
+
+.nav-new-chat-btn:hover {
+  background: var(--color-background-tertiary);
+  color: var(--color-text-primary);
+}
+
+.nav-new-chat-btn:active {
+  transform: scale(0.92);
+}
+
+/* Sidebar collapsed: always show the button */
+.sidebar--collapsed .nav-new-chat-btn {
+  opacity: 1;
+  width: 24px;
+  height: 24px;
+  margin-right: 0;
+}
+/* ¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦ */

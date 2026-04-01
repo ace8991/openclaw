@@ -1,4 +1,4 @@
-import { html, nothing } from "lit";
+﻿import { html, nothing } from "lit";
 import { repeat } from "lit/directives/repeat.js";
 import { parseAgentSessionKey } from "../../../src/sessions/session-key-utils.js";
 import { t } from "../i18n/index.ts";
@@ -61,7 +61,8 @@ export function renderTab(state: AppViewState, tab: Tab, opts?: { collapsed?: bo
   const isActive = state.tab === tab;
   const collapsed = opts?.collapsed ?? state.settings.navCollapsed;
   const showBadge = tab === "apiKeys" && state.apiKeysInvalidCount > 0;
-  return html`
+
+  const link = html`
     <a
       href=${href}
       class="nav-item ${isActive ? "nav-item--active" : ""}"
@@ -100,6 +101,30 @@ export function renderTab(state: AppViewState, tab: Tab, opts?: { collapsed?: bo
       ${!collapsed ? html`<span class="nav-item__text">${titleForTab(tab)}</span>` : nothing}
     </a>
   `;
+
+  if (tab === "chat") {
+    return html`
+      <div class="nav-item-chat-row">
+        ${link}
+        <button
+          class="nav-new-chat-btn"
+          title="New conversation"
+          aria-label="New conversation"
+          @click=${(e: Event) => {
+            e.stopPropagation();
+            state.setTab("chat");
+            state.handleSendChat("/new", { restoreDraft: false });
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    `;
+  }
+
+  return link;
 }
 
 function renderCronFilterIcon(hiddenCount: number) {

@@ -1,4 +1,5 @@
-﻿import { html, nothing, type TemplateResult } from "lit";
+﻿// conv-sidebar build v2
+import { html, nothing, type TemplateResult } from "lit";
 import { ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
 import {
