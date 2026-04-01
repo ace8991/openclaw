@@ -1,4 +1,4 @@
-import { html, nothing } from "lit";
+﻿import { html, nothing } from "lit";
 import {
   buildAgentMainSessionKey,
   parseAgentSessionKey,
@@ -1491,6 +1491,17 @@ export function renderApp(state: AppViewState) {
                 },
                 showNewMessages: state.chatNewMessagesBelow && !state.chatManualRefreshInFlight,
                 onScrollToBottom: () => state.scrollToBottom(),
+                // Conversations sidebar
+                convSidebarOpen: state.convSidebarOpen,
+                onToggleConvSidebar: () => { state.convSidebarOpen = !state.convSidebarOpen; },
+                onDeleteSession: async (key: string) => {
+                  if (!state.client || !state.connected) return;
+                  await deleteSessionAndRefresh(state, key);
+                  if (state.sessionKey === key) {
+                    state.handleSendChat("/new", { restoreDraft: false });
+                  }
+                  void loadSessions(state);
+                },
                 // Sidebar props for tool output viewing
                 sidebarOpen: state.sidebarOpen,
                 sidebarContent: state.sidebarContent,

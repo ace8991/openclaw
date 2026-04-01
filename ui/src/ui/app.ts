@@ -1,4 +1,4 @@
-import { LitElement } from "lit";
+﻿import { LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { i18n, I18nController, isSupportedLocale } from "../i18n/index.ts";
 import {
@@ -196,6 +196,8 @@ export class OpenClawApp extends LitElement {
 
   // Sidebar state for tool output viewing
   @state() sidebarOpen = false;
+  // Conversations sidebar state
+  @state() convSidebarOpen = false;
   @state() sidebarContent: string | null = null;
   @state() sidebarError: string | null = null;
   @state() splitRatio = this.settings.splitRatio;

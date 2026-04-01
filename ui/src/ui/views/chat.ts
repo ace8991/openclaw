@@ -1,4 +1,4 @@
-import { html, nothing, type TemplateResult } from "lit";
+﻿import { html, nothing, type TemplateResult } from "lit";
 import { ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
 import {
@@ -96,6 +96,9 @@ export type ChatProps = {
   onQueueRemove: (id: string) => void;
   onNewSession: () => void;
   onClearHistory?: () => void;
+  onDeleteSession?: (key: string) => void;
+  convSidebarOpen?: boolean;
+  onToggleConvSidebar?: () => void;
   agentsList: {
     agents: Array<{ id: string; name?: string; identity?: { name?: string; avatarUrl?: string } }>;
     defaultId?: string;
@@ -799,6 +802,102 @@ function renderSlashMenu(
   `;
 }
 
+
+// ─── Conversations Sidebar ────────────────────────────────────────────────────
+function resolveSessionTitle(session: import("../types.ts").GatewaySessionRow): string {
+  const label = (session as unknown as { label?: string }).label;
+  if (label && label.trim()) {
+    return label.trim().slice(0, 50);
+  }
+  const preview = (session as unknown as { preview?: string; lastUserMessage?: string }).preview
+    ?? (session as unknown as { lastUserMessage?: string }).lastUserMessage;
+  if (preview && preview.trim()) {
+    return preview.trim().slice(0, 50);
+  }
+  const key = session.key ?? "";
+  if (key.startsWith("agent:")) {
+    const parts = key.split(":");
+    return parts[parts.length - 1] || "Conversation";
+  }
+  return "New conversation";
+}
+
+function formatRelTime(ts: number | undefined): string {
+  if (!ts) return "";
+  const diffMs = Date.now() - ts;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "now";
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH}h`;
+  const diffD = Math.floor(diffH / 24);
+  return `${diffD}d`;
+}
+
+export function renderConversationsSidebar(props: ChatProps) {
+  const sessions = props.sessions?.sessions ?? [];
+  const sorted = [...sessions].sort((a, b) => {
+    const ta = (b as unknown as { updatedAt?: number }).updatedAt ?? 0;
+    const tb = (a as unknown as { updatedAt?: number }).updatedAt ?? 0;
+    return ta - tb;
+  });
+
+  return html`
+    <aside class="conv-sidebar">
+      <div class="conv-sidebar__header">
+        <span class="conv-sidebar__title">Conversations</span>
+        <button
+          class="conv-sidebar__new-btn"
+          @click=${props.onNewSession}
+          title="New conversation"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          New
+        </button>
+      </div>
+
+      <div class="conv-sidebar__list">
+        ${sorted.length === 0
+          ? html`<div class="conv-sidebar__empty">No conversations yet</div>`
+          : sorted.map((session) => {
+              const isActive = session.key === props.sessionKey;
+              const title = resolveSessionTitle(session);
+              const ts = (session as unknown as { updatedAt?: number }).updatedAt;
+              return html`
+                <div
+                  class="conv-sidebar__item ${isActive ? "conv-sidebar__item--active" : ""}"
+                  @click=${() => props.onSessionSelect?.(session.key)}
+                  title=${title}
+                >
+                  <div class="conv-sidebar__item-content">
+                    <span class="conv-sidebar__item-title">${title}</span>
+                    <span class="conv-sidebar__item-time">${formatRelTime(ts)}</span>
+                  </div>
+                  <button
+                    class="conv-sidebar__item-delete"
+                    title="Delete conversation"
+                    @click=${(e: Event) => {
+                      e.stopPropagation();
+                      if (confirm("Delete this conversation?")) {
+                        props.onDeleteSession?.(session.key);
+                      }
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+              `;
+            })
+        }
+      </div>
+    </aside>
+  `;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 export function renderChat(props: ChatProps) {
   const canCompose = props.connected;
   const isBusy = props.sending || props.stream !== null;
@@ -1070,12 +1169,16 @@ export function renderChat(props: ChatProps) {
     props.onDraftChange(target.value);
   };
 
+  const convSidebarOpen = Boolean(props.convSidebarOpen);
+
   return html`
-    <section
-      class="card chat"
-      @drop=${(e: DragEvent) => handleDrop(e, props)}
-      @dragover=${(e: DragEvent) => e.preventDefault()}
-    >
+    <div class="conv-layout">
+      ${convSidebarOpen ? renderConversationsSidebar(props) : nothing}
+      <section
+        class="card chat"
+        @drop=${(e: DragEvent) => handleDrop(e, props)}
+        @dragover=${(e: DragEvent) => e.preventDefault()}
+      >
       ${props.disabledReason ? html`<div class="callout">${props.disabledReason}</div>` : nothing}
       ${props.error ? html`<div class="callout danger">${props.error}</div>` : nothing}
 
@@ -1294,6 +1397,17 @@ export function renderChat(props: ChatProps) {
                     </button>
                   `
             }
+            <button
+              class="btn-ghost ${convSidebarOpen ? "active" : ""}"
+              @click=${props.onToggleConvSidebar}
+              title="${convSidebarOpen ? "Hide conversations" : "Show conversations"}"
+              aria-label="Toggle conversations sidebar"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="2" width="4" height="12" rx="1" fill="currentColor" opacity="${convSidebarOpen ? "1" : "0.5"}"/>
+                <path d="M8 4h6M8 8h6M8 12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
             <button class="btn-ghost" @click=${() => exportMarkdown(props)} title="Export" ?disabled=${props.messages.length === 0}>
               ${icons.download}
             </button>
@@ -1325,6 +1439,7 @@ export function renderChat(props: ChatProps) {
         </div>
       </div>
     </section>
+    </div>
   `;
 }
 
