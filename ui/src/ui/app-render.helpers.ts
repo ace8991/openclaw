@@ -103,6 +103,20 @@ export function renderTab(state: AppViewState, tab: Tab, opts?: { collapsed?: bo
   `;
 
   if (tab === "chat") {
+    const sessions = state.sessionsResult?.sessions ?? [];
+    // Filter: only user sessions, sorted by updatedAt desc, max 20
+    const chatSessions = [...sessions]
+      .filter((s) => {
+        const k = s.key ?? "";
+        return !k.startsWith("heartbeat") && !k.startsWith("cron:");
+      })
+      .sort((a, b) => {
+        const ta = (b as unknown as { updatedAt?: number }).updatedAt ?? 0;
+        const tb = (a as unknown as { updatedAt?: number }).updatedAt ?? 0;
+        return ta - tb;
+      })
+      .slice(0, 20);
+
     return html`
       <div class="nav-item-chat-row">
         ${link}
@@ -116,11 +130,35 @@ export function renderTab(state: AppViewState, tab: Tab, opts?: { collapsed?: bo
             state.handleSendChat("/new", { restoreDraft: false });
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
           </svg>
         </button>
       </div>
+      ${!collapsed && chatSessions.length > 0 ? html`
+        <div class="nav-chat-history">
+          ${chatSessions.map((session) => {
+            const key = session.key ?? "";
+            const isActiveSession = key === state.sessionKey;
+            const label = (session as unknown as { label?: string }).label?.trim()
+              || (session as unknown as { preview?: string }).preview?.trim()?.slice(0, 40)
+              || key.replace("agent:main:", "").slice(0, 30)
+              || "New conversation";
+            return html`
+              <div
+                class="nav-chat-history__item ${isActiveSession ? "nav-chat-history__item--active" : ""}"
+                @click=${() => {
+                  state.setTab("chat");
+                  switchChatSession(state, key);
+                }}
+                title=${label}
+              >
+                <span class="nav-chat-history__label">${label}</span>
+              </div>
+            `;
+          })}
+        </div>
+      ` : nothing}
     `;
   }
 
