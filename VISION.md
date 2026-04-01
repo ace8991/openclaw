@@ -1,6 +1,8 @@
-## OpenClaw Vision
+> This is a fork of OpenClaw by ace8991. MIT License.
 
-OpenClaw is the AI that actually does things.
+## AceAgent Vision
+
+AceAgent is the AI that actually does things.
 It runs on your devices, in your channels, with your rules.
 
 This document explains the current state and direction of the project.
@@ -66,7 +68,7 @@ Today we ship multiple memory options; over time we plan to converge on one reco
 ### Skills
 
 We still ship some bundled skills for baseline UX.
-New skills should be published to ClawHub first (`clawhub.ai`), not added to core by default.
+New skills should be published as separate packages first, not added to core by default.
 Core skill additions should be rare and require a strong product or security reason.
 
 ### MCP Support

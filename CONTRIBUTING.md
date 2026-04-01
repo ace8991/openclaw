@@ -1,13 +1,13 @@
-# Contributing to OpenClaw
+> This is a fork of OpenClaw by ace8991. MIT License.
 
-Welcome to the lobster tank! 🦞
+# Contributing to AceAgent
+
+Welcome! 🤖
 
 ## Quick Links
 
-- **GitHub:** https://github.com/openclaw/openclaw
+- **GitHub:** https://github.com/ace8991/openclaw
 - **Vision:** [`VISION.md`](VISION.md)
-- **Discord:** https://discord.gg/qkhbAGHRBT
-- **X/Twitter:** [@steipete](https://x.com/steipete) / [@openclaw](https://x.com/openclaw)
 
 ## Maintainers
 

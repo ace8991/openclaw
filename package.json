@@ -1,20 +1,21 @@
 {
-  "name": "openclaw",
+  "name": "aceagent",
   "version": "2026.3.14",
-  "description": "Multi-channel AI gateway with extensible messaging integrations",
+  "description": "Personal AI agent — any channel, any model, self-hosted.",
   "keywords": [],
-  "homepage": "https://github.com/openclaw/openclaw#readme",
+  "homepage": "https://github.com/ace8991/openclaw",
   "bugs": {
-    "url": "https://github.com/openclaw/openclaw/issues"
+    "url": "https://github.com/ace8991/openclaw/issues"
   },
   "license": "MIT",
   "author": "",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openclaw/openclaw.git"
+    "url": "git+https://github.com/ace8991/openclaw.git"
   },
   "bin": {
-    "openclaw": "openclaw.mjs"
+    "openclaw": "openclaw.mjs",
+    "aceagent": "openclaw.mjs"
   },
   "directories": {
     "doc": "docs",
