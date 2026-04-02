@@ -11,11 +11,14 @@ import type { OpenClawApp } from "./app.ts";
 import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-identity.ts";
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import { loadAgents } from "./controllers/agents.ts";
+import { loadAceCode } from "./controllers/ace-code.ts";
 import { loadApiKeys } from "./controllers/api-keys.ts";
 import { loadChannels } from "./controllers/channels.ts";
 import { loadConfig, loadConfigSchema } from "./controllers/config.ts";
+import { loadCoWorkProjects } from "./controllers/cowork.ts";
 import { loadCronJobs, loadCronRuns, loadCronStatus } from "./controllers/cron.ts";
 import { loadDebug } from "./controllers/debug.ts";
+import { refreshDesktopPanel } from "./controllers/desktop-commander.ts";
 import { loadDevices } from "./controllers/devices.ts";
 import { loadExecApprovals } from "./controllers/exec-approvals.ts";
 import { loadLogs } from "./controllers/logs.ts";
@@ -273,6 +276,15 @@ export async function refreshActiveTab(host: SettingsHost) {
       host as unknown as Parameters<typeof scheduleChatScroll>[0],
       !host.chatHasAutoScrolled,
     );
+  }
+  if (host.tab === "aceCode") {
+    await loadAceCode(host as unknown as Parameters<typeof loadAceCode>[0]);
+  }
+  if (host.tab === "coWork") {
+    await loadCoWorkProjects(host as unknown as Parameters<typeof loadCoWorkProjects>[0]);
+  }
+  if (host.tab === "desktopCmd") {
+    await refreshDesktopPanel(host as unknown as Parameters<typeof refreshDesktopPanel>[0]);
   }
   if (
     host.tab === "config" ||

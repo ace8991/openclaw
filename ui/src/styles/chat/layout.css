@@ -67,6 +67,27 @@
   margin-top: 0 !important;
 }
 
+.chat-project-badge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--project-color, var(--accent)) 40%, transparent);
+  background: color-mix(in srgb, var(--project-color, var(--accent)) 12%, transparent);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.chat-project-badge svg {
+  width: 14px;
+  height: 14px;
+  color: var(--project-color, var(--accent));
+}
+
 /* Focus mode exit button */
 .chat-focus-exit {
   position: absolute;

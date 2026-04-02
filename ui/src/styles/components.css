@@ -1335,10 +1335,18 @@
   background: rgba(0, 0, 0, 0.25);
   font-size: 12px;
   line-height: 1;
+  flex-wrap: wrap;
 }
 
 :root[data-theme-mode="light"] .code-block-header {
   background: rgba(0, 0, 0, 0.08);
+}
+
+.code-block-file {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  user-select: none;
 }
 
 .code-block-lang {
@@ -1349,7 +1357,14 @@
   user-select: none;
 }
 
-.code-block-copy {
+.code-block-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.code-block-copy,
+.code-block-open-ace {
   appearance: none;
   border: none;
   background: transparent;
@@ -1364,12 +1379,14 @@
     background 150ms ease;
 }
 
-.code-block-copy:hover {
+.code-block-copy:hover,
+.code-block-open-ace:hover {
   color: var(--text);
   background: rgba(255, 255, 255, 0.1);
 }
 
-:root[data-theme-mode="light"] .code-block-copy:hover {
+:root[data-theme-mode="light"] .code-block-copy:hover,
+:root[data-theme-mode="light"] .code-block-open-ace:hover {
   background: rgba(0, 0, 0, 0.08);
 }
 

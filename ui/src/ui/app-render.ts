@@ -22,6 +22,17 @@ import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-iden
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import { loadAgents, loadToolsCatalog, saveAgentsConfig } from "./controllers/agents.ts";
 import {
+  clearAceCodeTerminal,
+  closeAceCodeTab,
+  loadAceCode,
+  mapAceCodeChatMessages,
+  openAceCodeFile,
+  openAceCodeSnippet,
+  runAceCodeCommand,
+  sendAceCodeMessage,
+  toggleAceCodeSidebar,
+} from "./controllers/ace-code.ts";
+import {
   closeApiKeyForm,
   deleteApiKey,
   openApiKeyForm,
@@ -34,6 +45,16 @@ import {
 } from "./controllers/api-keys.ts";
 import { loadChannels } from "./controllers/channels.ts";
 import { loadChatHistory } from "./controllers/chat.ts";
+import {
+  addFilesToCoWorkProject,
+  createCoWorkProject,
+  deleteCoWorkProject,
+  openCoWorkProjectInChat,
+  removeFileFromCoWorkProject,
+  resolveActiveProject,
+  selectCoWorkProject,
+  updateCoWorkProject,
+} from "./controllers/cowork.ts";
 import {
   applyConfig,
   ensureAgentConfigEntry,
@@ -65,6 +86,17 @@ import {
   updateCronRunsFilter,
 } from "./controllers/cron.ts";
 import { loadDebug, callDebugMethod } from "./controllers/debug.ts";
+import {
+  clearDesktopTerminal,
+  filterDesktopProcesses,
+  killDesktopProcess,
+  loadDesktopDirectory,
+  openDesktopFile,
+  refreshDesktopPanel,
+  runDesktopCommand,
+  setDesktopProcessFilter,
+  setDesktopTab,
+} from "./controllers/desktop-commander.ts";
 import {
   approveDevicePairing,
   loadDevices,
@@ -321,6 +353,7 @@ export function renderApp(state: AppViewState) {
   const cronNext = state.cronStatus?.nextWakeAtMs ?? null;
   const chatDisabledReason = state.connected ? null : t("chat.disconnected");
   const isChat = state.tab === "chat";
+  const isAceCode = state.tab === "aceCode";
   const chatFocus = isChat && (state.settings.chatFocusMode || state.onboarding);
   const navDrawerOpen = Boolean(state.navDrawerOpen && !chatFocus && !state.onboarding);
   const navCollapsed = Boolean(state.settings.navCollapsed && !navDrawerOpen);
@@ -394,6 +427,23 @@ export function renderApp(state: AppViewState) {
     state.cronForm.deliveryMode === "webhook"
       ? rawDeliveryToSuggestions.filter((value) => isHttpUrl(value))
       : rawDeliveryToSuggestions;
+  const activeProject = resolveActiveProject(state);
+  const chatProject =
+    activeProject && state.sessionKey === `cowork:${activeProject.id}` ? activeProject : null;
+  const aceChatMessages = mapAceCodeChatMessages(state.chatMessages);
+  const filteredDesktopProcesses = filterDesktopProcesses(
+    state.desktopCmdProcesses,
+    state.desktopCmdProcessFilter,
+  );
+  const aceActiveTabIndex = state.aceCodeOpenTabs.findIndex(
+    (entry) => entry.path === state.aceCodeActiveFile,
+  );
+  const acePreviousTab =
+    aceActiveTabIndex > 0 ? state.aceCodeOpenTabs[aceActiveTabIndex - 1] ?? null : null;
+  const aceNextTab =
+    aceActiveTabIndex >= 0 && aceActiveTabIndex < state.aceCodeOpenTabs.length - 1
+      ? state.aceCodeOpenTabs[aceActiveTabIndex + 1] ?? null
+      : null;
 
   return html`
     ${renderCommandPalette({
@@ -418,187 +468,327 @@ export function renderApp(state: AppViewState) {
       },
     })}
     <div
-      class="shell ${isChat ? "shell--chat" : ""} ${chatFocus ? "shell--chat-focus" : ""} ${navCollapsed ? "shell--nav-collapsed" : ""} ${navDrawerOpen ? "shell--nav-drawer-open" : ""} ${state.onboarding ? "shell--onboarding" : ""}"
+      class="shell ${isChat ? "shell--chat" : ""} ${isAceCode ? "shell--ace-code" : ""} ${chatFocus ? "shell--chat-focus" : ""} ${navCollapsed ? "shell--nav-collapsed" : ""} ${navDrawerOpen ? "shell--nav-drawer-open" : ""} ${state.onboarding ? "shell--onboarding" : ""}"
     >
-      <button
-        type="button"
-        class="shell-nav-backdrop"
-        aria-label="${t("nav.collapse")}"
-        @click=${() => {
-          state.navDrawerOpen = false;
-        }}
-      ></button>
-      <header class="topbar">
-        <div class="topnav-shell">
-          <button
-            type="button"
-            class="topbar-nav-toggle"
-            @click=${() => {
-              state.navDrawerOpen = !navDrawerOpen;
-            }}
-            title="${navDrawerOpen ? t("nav.collapse") : t("nav.expand")}"
-            aria-label="${navDrawerOpen ? t("nav.collapse") : t("nav.expand")}"
-            aria-expanded=${navDrawerOpen}
-          >
-            <span class="nav-collapse-toggle__icon" aria-hidden="true">${icons.menu}</span>
-          </button>
-          <div class="topnav-shell__content">
-            <dashboard-header .tab=${state.tab}></dashboard-header>
-          </div>
-          <div class="topnav-shell__actions">
-            <a
-              class="topbar-quick-btn ${state.tab === "aceCode" ? "topbar-quick-btn--active" : ""}"
-              href=${pathForTab("aceCode", state.basePath)}
-              @click=${(e: MouseEvent) => { e.preventDefault(); state.setTab("aceCode"); }}
-              title="Ace Code"
-            >
-              ${icons.code} <span class="topbar-quick-label">Code</span>
-            </a>
-            <a
-              class="topbar-quick-btn ${state.tab === "coWork" ? "topbar-quick-btn--active" : ""}"
-              href=${pathForTab("coWork", state.basePath)}
-              @click=${(e: MouseEvent) => { e.preventDefault(); state.setTab("coWork"); }}
-              title="CoWork"
-            >
-              ${icons.folder} <span class="topbar-quick-label">CoWork</span>
-            </a>
-            <button
-              class="topbar-search"
+      ${
+        isAceCode
+          ? nothing
+          : html`<button
+              type="button"
+              class="shell-nav-backdrop"
+              aria-label="${t("nav.collapse")}"
               @click=${() => {
-                state.paletteOpen = !state.paletteOpen;
+                state.navDrawerOpen = false;
               }}
-              title="Search or jump to… (⌘K)"
-              aria-label="Open command palette"
-            >
-              <span class="topbar-search__label">${t("common.search")}</span>
-              <kbd class="topbar-search__kbd">⌘K</kbd>
-            </button>
-            <div class="topbar-status">
-              ${isChat ? renderChatMobileToggle(state) : nothing}
-              ${renderTopbarThemeModeToggle(state)}
-            </div>
-          </div>
-        </div>
-      </header>
-      <div class="shell-nav">
-        <aside class="sidebar ${navCollapsed ? "sidebar--collapsed" : ""}">
-          <div class="sidebar-shell">
-            <div class="sidebar-shell__header">
-              <div class="sidebar-brand">
-                ${
-                  navCollapsed
-                    ? nothing
-                    : html`
-                        <img class="sidebar-brand__logo" src="${agentLogoUrl(basePath)}" alt="AceAgent" />
-                        <span class="sidebar-brand__copy">
-                          <span class="sidebar-brand__eyebrow">${t("nav.control")}</span>
-                          <span class="sidebar-brand__title">AceAgent</span>
-                        </span>
-                      `
-                }
-              </div>
-              <button
-                type="button"
-                class="nav-collapse-toggle"
-                @click=${() =>
-                  state.applySettings({
-                    ...state.settings,
-                    navCollapsed: !state.settings.navCollapsed,
-                  })}
-                title="${navCollapsed ? t("nav.expand") : t("nav.collapse")}"
-                aria-label="${navCollapsed ? t("nav.expand") : t("nav.collapse")}"
-              >
-                <span class="nav-collapse-toggle__icon" aria-hidden="true">${icons.menu}</span>
-              </button>
-            </div>
-            <div class="sidebar-shell__body">
-              <nav class="sidebar-nav">
-                ${TAB_GROUPS.map((group) => {
-                  const isGroupCollapsed = state.settings.navGroupsCollapsed[group.label] ?? false;
-                  const hasActiveTab = group.tabs.some((tab) => tab === state.tab);
-                  const showItems = navCollapsed || hasActiveTab || !isGroupCollapsed;
-
-                  return html`
-                    <section class="nav-section ${!showItems ? "nav-section--collapsed" : ""}">
-                      ${
-                        !navCollapsed
-                          ? html`
-                              <button
-                                class="nav-section__label"
-                                @click=${() => {
-                                  const next = { ...state.settings.navGroupsCollapsed };
-                                  next[group.label] = !isGroupCollapsed;
-                                  state.applySettings({
-                                    ...state.settings,
-                                    navGroupsCollapsed: next,
-                                  });
-                                }}
-                                aria-expanded=${showItems}
-                              >
-                                <span class="nav-section__label-text">${t(`nav.${group.label}`)}</span>
-                                <span class="nav-section__chevron">
-                                  ${showItems ? icons.chevronDown : icons.chevronRight}
-                                </span>
-                              </button>
-                            `
-                          : nothing
-                      }
-                      <div class="nav-section__items">
-                        ${group.tabs.map((tab) => renderTab(state, tab, { collapsed: navCollapsed }))}
-                      </div>
-                    </section>
-                  `;
-                })}
-              </nav>
-            </div>
-            <div class="sidebar-shell__footer">
-              <div class="sidebar-utility-group">
-                <a
-                  class="nav-item nav-item--external sidebar-utility-link"
-                  href="https://github.com/ace8991/openclaw/wiki"
-                  target=${EXTERNAL_LINK_TARGET}
-                  rel=${buildExternalLinkRel()}
-                  title="${t("common.docs")} (opens in new tab)"
-                >
-                  <span class="nav-item__icon" aria-hidden="true">${icons.book}</span>
-                  ${
-                    !navCollapsed
-                      ? html`
-                          <span class="nav-item__text">${t("common.docs")}</span>
-                          <span class="nav-item__external-icon">${icons.externalLink}</span>
-                        `
-                      : nothing
-                  }
-                </a>
-                <div class="sidebar-mode-switch">
-                  ${renderTopbarThemeModeToggle(state)}
+            ></button>`
+      }
+      <header class="topbar">
+        ${
+          isAceCode
+            ? html`
+                <div class="topnav-shell topnav-shell--ace-code">
+                  <div class="ace-topbar-left">
+                    <button
+                      type="button"
+                      class="ace-topbar-icon"
+                      @click=${() => state.setTab("chat")}
+                      title="Back to chat"
+                    >
+                      ${icons.menu}
+                    </button>
+                    <button
+                      type="button"
+                      class="ace-topbar-icon"
+                      @click=${() => toggleAceCodeSidebar(state)}
+                      title=${state.aceCodeSidebarOpen ? "Hide explorer" : "Show explorer"}
+                    >
+                      ${state.aceCodeSidebarOpen ? icons.panelLeftClose : icons.panelLeftOpen}
+                    </button>
+                    <button
+                      type="button"
+                      class="ace-topbar-icon"
+                      ?disabled=${!acePreviousTab}
+                      @click=${() => {
+                        if (acePreviousTab) {
+                          void openAceCodeFile(state, acePreviousTab.path);
+                        }
+                      }}
+                      title="Previous file"
+                    >
+                      ${icons.arrowLeft}
+                    </button>
+                    <button
+                      type="button"
+                      class="ace-topbar-icon"
+                      ?disabled=${!aceNextTab}
+                      @click=${() => {
+                        if (aceNextTab) {
+                          void openAceCodeFile(state, aceNextTab.path);
+                        }
+                      }}
+                      title="Next file"
+                    >
+                      ${icons.arrowRight}
+                    </button>
+                  </div>
+                  <div class="ace-topbar-switcher" role="tablist" aria-label="Ace Code navigation">
+                    <a
+                      class="ace-topbar-switcher__item ${state.tab === "chat" ? "ace-topbar-switcher__item--active" : ""}"
+                      href=${pathForTab("chat", state.basePath)}
+                      @click=${(e: MouseEvent) => {
+                        e.preventDefault();
+                        state.setTab("chat");
+                      }}
+                    >
+                      Chat
+                    </a>
+                    <a
+                      class="ace-topbar-switcher__item ${state.tab === "coWork" ? "ace-topbar-switcher__item--active" : ""}"
+                      href=${pathForTab("coWork", state.basePath)}
+                      @click=${(e: MouseEvent) => {
+                        e.preventDefault();
+                        state.setTab("coWork");
+                      }}
+                    >
+                      Cowork
+                    </a>
+                    <a
+                      class="ace-topbar-switcher__item ${state.tab === "aceCode" ? "ace-topbar-switcher__item--active" : ""}"
+                      href=${pathForTab("aceCode", state.basePath)}
+                      @click=${(e: MouseEvent) => {
+                        e.preventDefault();
+                        state.setTab("aceCode");
+                      }}
+                    >
+                      Code
+                    </a>
+                  </div>
+                  <div class="ace-topbar-right">
+                    <button
+                      class="ace-topbar-search"
+                      @click=${() => {
+                        state.paletteOpen = !state.paletteOpen;
+                      }}
+                      title="Search or jump to… (⌘K)"
+                      aria-label="Open command palette"
+                    >
+                      ${icons.search}
+                    </button>
+                    ${renderTopbarThemeModeToggle(state)}
+                  </div>
                 </div>
-                ${(() => {
-                  const version = state.hello?.server?.version ?? "";
-                  return version
-                    ? html`
-                        <div class="sidebar-version" title=${`v${version}`}>
-                          ${
-                            !navCollapsed
-                              ? html`
-                                  <span class="sidebar-version__label">${t("common.version")}</span>
-                                  <span class="sidebar-version__text">v${version}</span>
-                                  ${renderSidebarConnectionStatus(state)}
-                                `
-                              : html`
-                                  ${renderSidebarConnectionStatus(state)}
-                                `
-                          }
+              `
+            : html`
+                <div class="topnav-shell">
+                  <button
+                    type="button"
+                    class="topbar-nav-toggle"
+                    @click=${() => {
+                      state.navDrawerOpen = !navDrawerOpen;
+                    }}
+                    title="${navDrawerOpen ? t("nav.collapse") : t("nav.expand")}"
+                    aria-label="${navDrawerOpen ? t("nav.collapse") : t("nav.expand")}"
+                    aria-expanded=${navDrawerOpen}
+                  >
+                    <span class="nav-collapse-toggle__icon" aria-hidden="true">${icons.menu}</span>
+                  </button>
+                  <div class="topnav-shell__content">
+                    <dashboard-header .tab=${state.tab}></dashboard-header>
+                  </div>
+                  <div class="topnav-shell__actions">
+                    <a
+                      class="topbar-quick-btn ${state.tab === "aceCode" ? "topbar-quick-btn--active" : ""}"
+                      href=${pathForTab("aceCode", state.basePath)}
+                      @click=${(e: MouseEvent) => { e.preventDefault(); state.setTab("aceCode"); }}
+                      title="Ace Code"
+                    >
+                      ${icons.code} <span class="topbar-quick-label">Code</span>
+                    </a>
+                    <a
+                      class="topbar-quick-btn ${state.tab === "coWork" ? "topbar-quick-btn--active" : ""}"
+                      href=${pathForTab("coWork", state.basePath)}
+                      @click=${(e: MouseEvent) => { e.preventDefault(); state.setTab("coWork"); }}
+                      title="CoWork"
+                    >
+                      ${icons.folder} <span class="topbar-quick-label">CoWork</span>
+                    </a>
+                    <button
+                      class="topbar-search"
+                      @click=${() => {
+                        state.paletteOpen = !state.paletteOpen;
+                      }}
+                      title="Search or jump to… (⌘K)"
+                      aria-label="Open command palette"
+                    >
+                      <span class="topbar-search__label">${t("common.search")}</span>
+                      <kbd class="topbar-search__kbd">⌘K</kbd>
+                    </button>
+                    <div class="topbar-status">
+                      ${isChat ? renderChatMobileToggle(state) : nothing}
+                      ${renderTopbarThemeModeToggle(state)}
+                    </div>
+                  </div>
+                </div>
+              `
+        }
+      </header>
+      ${
+        isAceCode
+          ? nothing
+          : html`<div class="shell-nav">
+              <aside class="sidebar ${navCollapsed ? "sidebar--collapsed" : ""}">
+                <div class="sidebar-shell">
+                  <div class="sidebar-shell__header">
+                    <div class="sidebar-brand">
+                      ${
+                        navCollapsed
+                          ? nothing
+                          : html`
+                              <img class="sidebar-brand__logo" src="${agentLogoUrl(basePath)}" alt="AceAgent" />
+                              <span class="sidebar-brand__copy">
+                                <span class="sidebar-brand__eyebrow">${t("nav.control")}</span>
+                                <span class="sidebar-brand__title">AceAgent</span>
+                              </span>
+                            `
+                      }
+                    </div>
+                    <button
+                      type="button"
+                      class="nav-collapse-toggle"
+                      @click=${() =>
+                        state.applySettings({
+                          ...state.settings,
+                          navCollapsed: !state.settings.navCollapsed,
+                        })}
+                      title="${navCollapsed ? t("nav.expand") : t("nav.collapse")}"
+                      aria-label="${navCollapsed ? t("nav.expand") : t("nav.collapse")}"
+                    >
+                      <span class="nav-collapse-toggle__icon" aria-hidden="true">${icons.menu}</span>
+                    </button>
+                  </div>
+                  <div class="sidebar-shell__body claude-sidebar-body">
+                    <!-- Claude.ai style: fixed actions -->
+                    <div class="cs-actions">
+                      <button class="cs-action cs-action--new"
+                        @click=${() => {
+                          state.setTab("chat");
+                          void state.handleSendChat("/new", { restoreDraft: false });
+                        }}>
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1v13M1 7.5h13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                        <span>Nouvelle session</span>
+                      </button>
+                      <button class="cs-action"
+                        @click=${() => { state.paletteOpen = !state.paletteOpen; }}>
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 10L13.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                        <span>Rechercher</span>
+                      </button>
+                      <button class="cs-action"
+                        @click=${() => state.setTab("cron" as import("./navigation.ts").Tab)}>
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 4v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                        <span>Programmé</span>
+                      </button>
+                      <button class="cs-action"
+                        @click=${() => state.setTab("channels" as import("./navigation.ts").Tab)}>
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M13.5 1.5L1 6.5l5 2.5L8.5 14l5-12.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+                        <span>Dispatch</span>
+                      </button>
+                      <button class="cs-action"
+                        @click=${() => state.setTab("appearance" as import("./navigation.ts").Tab)}>
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" stroke-width="1.4"/><path d="M7.5 1v2M7.5 12v2M1 7.5h2M12 7.5h2M3 3l1.4 1.4M10.6 10.6L12 12M3 12l1.4-1.4M10.6 4.4L12 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                        <span>Personnaliser</span>
+                      </button>
+                    </div>
+
+                    <!-- Tous les projets -->
+                    <div class="cs-section-header"
+                      @click=${() => state.setTab("coWork" as import("./navigation.ts").Tab)}>
+                      <span>Tous les projets</span>
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 3.5h10M1.5 6.5h6M1.5 9.5h8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                    </div>
+
+                    <!-- Conversation history -->
+                    <div class="cs-history">
+                      ${(() => {
+                        const sessions = state.sessionsResult?.sessions ?? [];
+                        const recent = [...sessions]
+                          .filter((s) => {
+                            const k = (s as unknown as {key:string}).key ?? "";
+                            return !k.startsWith("heartbeat") && !k.startsWith("cron:");
+                          })
+                          .sort((a, b) => {
+                            return ((b as unknown as {updatedAt?:number}).updatedAt ?? 0)
+                              - ((a as unknown as {updatedAt?:number}).updatedAt ?? 0);
+                          })
+                          .slice(0, 18);
+                        if (recent.length === 0) return nothing;
+                        return html`
+                          <div class="cs-history-label">Aujourd'hui</div>
+                          ${recent.map((session) => {
+                            const k = (session as unknown as {key:string}).key ?? "";
+                            const isActive = k === state.sessionKey;
+                            const label =
+                              (session as unknown as {label?:string}).label?.trim() ||
+                              (session as unknown as {preview?:string}).preview?.trim()?.slice(0, 45) ||
+                              k.replace("agent:main:", "").slice(0, 35) ||
+                              "Nouvelle session";
+                            return html`
+                              <button
+                                class="cs-history-item ${isActive ? "cs-history-item--active" : ""}"
+                                @click=${() => {
+                                  switchChatSession(state, k);
+                                  state.setTab("chat" as import("./navigation.ts").Tab);
+                                }}
+                                title=${label}
+                              >
+                                <span class="cs-history-dot ${isActive ? "cs-history-dot--on" : ""}"></span>
+                                <span class="cs-history-label-text">${label}</span>
+                                ${isActive ? html`
+                                  <svg class="cs-history-cloud" width="13" height="13" viewBox="0 0 13 13" fill="none">
+                                    <path d="M3 9A2.5 2.5 0 014 4.5a3 3 0 016 .5A2 2 0 019.5 9H3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+                                  </svg>` : nothing}
+                              </button>
+                            `;
+                          })}
+                        `;
+                      })()}
+                    </div>
+
+                    <!-- Bottom nav items (collapsed) -->
+                    ${navCollapsed ? html`
+                      <nav class="sidebar-nav">
+                        ${TAB_GROUPS.map((group) => html`
+                          <div class="nav-section__items">
+                            ${group.tabs.map((tab) => renderTab(state, tab, { collapsed: true }))}
+                          </div>
+                        `)}
+                      </nav>
+                    ` : nothing}
+                  </div>
+                  <div class="sidebar-shell__footer cs-footer">
+                    <div class="cs-user">
+                      <div class="cs-user__avatar">CE</div>
+                      ${!navCollapsed ? html`
+                        <div class="cs-user__info">
+                          <span class="cs-user__name">Carl Enockson Alexis</span>
+                          <span class="cs-user__plan">Forfait Pro</span>
                         </div>
-                      `
-                    : nothing;
-                })()}
-              </div>
-            </div>
-          </div>
-        </aside>
-      </div>
-      <main class="content ${isChat ? "content--chat" : ""}">
+                        <div class="cs-user__actions">
+                          ${renderTopbarThemeModeToggle(state)}
+                          ${renderSidebarConnectionStatus(state)}
+                        </div>
+                      ` : html`${renderSidebarConnectionStatus(state)}`}
+                    </div>
+                    ${!navCollapsed ? html`
+                      <div class="cs-footer-version">
+                        v${state.hello?.server?.version ?? ""}
+                      </div>
+                    ` : nothing}
+                  </div>
+                </div>
+              </aside>
+            </div>`
+      }
+      <main class="content ${isChat ? "content--chat" : ""} ${isAceCode ? "content--ace-code" : ""}">
         ${
           state.updateAvailable &&
           state.updateAvailable.latestVersion !== state.updateAvailable.currentVersion &&
@@ -627,7 +817,7 @@ export function renderApp(state: AppViewState) {
             : nothing
         }
         ${
-          state.tab === "config"
+          state.tab === "config" || isAceCode
             ? nothing
             : html`<section class="content-header">
               <div>
@@ -1446,6 +1636,12 @@ export function renderApp(state: AppViewState) {
                 canSend: state.connected,
                 disabledReason: chatDisabledReason,
                 error: state.lastError,
+                projectBadge: chatProject
+                  ? {
+                      name: chatProject.name,
+                      color: chatProject.color,
+                    }
+                  : null,
                 sessions: state.sessionsResult,
                 focusMode: chatFocus,
                 onRefresh: () => {
@@ -1529,6 +1725,10 @@ export function renderApp(state: AppViewState) {
                 onOpenSidebar: (content: string) => state.handleOpenSidebar(content),
                 onCloseSidebar: () => state.handleCloseSidebar(),
                 onSplitRatioChange: (ratio: number) => state.handleSplitRatioChange(ratio),
+                onOpenInAceCode: (filename: string, code: string) => {
+                  state.setTab("aceCode");
+                  void openAceCodeSnippet(state, filename, code);
+                },
                 assistantName: state.assistantName,
                 assistantAvatar: state.assistantAvatar,
                 basePath: state.basePath ?? "",
@@ -2022,24 +2222,33 @@ export function renderApp(state: AppViewState) {
           state.tab === "aceCode"
             ? lazyRender(lazyAceCode, (m) =>
                 m.renderAceCode({
-                  workspacePath: state.basePath ?? ".",
-                  files: [],
-                  diffs: [],
-                  terminalLines: [],
-                  activeFile: null,
-                  activeFileContent: null,
-                  openTabs: [],
-                  chatMessages: [],
-                  chatLoading: false,
+                  workspacePath: state.aceCodeWorkspacePath,
+                  files: state.aceCodeFiles,
+                  diffs: state.aceCodeDiffs,
+                  terminalLines: state.aceCodeTerminalLines,
+                  activeFile: state.aceCodeActiveFile,
+                  activeFileContent: state.aceCodeActiveFileContent,
+                  openTabs: state.aceCodeOpenTabs,
+                  chatMessages: aceChatMessages,
+                  chatLoading: state.chatLoading || state.chatSending,
                   connected: state.connected,
-                  sidebarOpen: true,
-                  onFileSelect: () => {},
-                  onCloseTab: () => {},
-                  onRunCommand: () => {},
-                  onClear: () => {},
-                  onRefreshFiles: () => {},
-                  onSendMessage: () => {},
-                  onToggleSidebar: () => {},
+                  sidebarOpen: state.aceCodeSidebarOpen,
+                  error: state.aceCodeError,
+                  onFileSelect: (path) => {
+                    void openAceCodeFile(state, path);
+                  },
+                  onCloseTab: (path) => closeAceCodeTab(state, path),
+                  onRunCommand: (cmd) => {
+                    void runAceCodeCommand(state, cmd);
+                  },
+                  onClear: () => clearAceCodeTerminal(state),
+                  onRefreshFiles: () => {
+                    void loadAceCode(state);
+                  },
+                  onSendMessage: (msg, files) => {
+                    void sendAceCodeMessage(state, msg, files);
+                  },
+                  onToggleSidebar: () => toggleAceCodeSidebar(state),
                 }),
               )
             : nothing
@@ -2049,14 +2258,32 @@ export function renderApp(state: AppViewState) {
           state.tab === "coWork"
             ? lazyRender(lazyCoWork, (m) =>
                 m.renderCoWork({
-                  projects: [],
-                  activeProjectId: null,
+                  projects: state.coWorkProjects,
+                  activeProjectId: state.activeProjectId,
                   connected: state.connected,
-                  onCreateProject: () => {},
-                  onSelectProject: () => {},
-                  onDeleteProject: () => {},
-                  onUpdateProject: () => {},
-                  onOpenInChat: () => {},
+                  loading: state.coWorkLoading,
+                  error: state.coWorkError,
+                  projectsPath: state.coWorkProjectsPath,
+                  onCreateProject: () => {
+                    void createCoWorkProject(state);
+                  },
+                  onSelectProject: (id) => selectCoWorkProject(state, id),
+                  onDeleteProject: (id) => {
+                    void deleteCoWorkProject(state, id);
+                  },
+                  onUpdateProject: (project) => {
+                    void updateCoWorkProject(state, project);
+                  },
+                  onAddFiles: (projectId, files) => {
+                    void addFilesToCoWorkProject(state, projectId, files);
+                  },
+                  onRemoveFile: (projectId, fileName) => {
+                    void removeFileFromCoWorkProject(state, projectId, fileName);
+                  },
+                  onOpenInChat: (projectId) => {
+                    void openCoWorkProjectInChat(state, projectId);
+                    void loadChatHistory(state);
+                  },
                 }),
               )
             : nothing
@@ -2067,18 +2294,36 @@ export function renderApp(state: AppViewState) {
             ? lazyRender(lazyDesktopCmd, (m) =>
                 m.renderDesktopCommander({
                   connected: state.connected,
-                  activeTab: "files",
-                  currentPath: "/",
-                  files: [],
-                  terminalLines: [],
-                  processes: [],
-                  systemStats: null,
-                  onTabChange: () => {},
-                  onNavigate: () => {},
-                  onRunCommand: () => {},
-                  onClearTerminal: () => {},
-                  onKillProcess: () => {},
-                  onRefresh: () => {},
+                  activeTab: state.desktopCmdActiveTab,
+                  currentPath: state.desktopCmdCurrentPath,
+                  roots: state.desktopCmdRoots,
+                  files: state.desktopCmdFiles,
+                  selectedFile: state.desktopCmdSelectedFile,
+                  selectedFileContent: state.desktopCmdSelectedFileContent,
+                  terminalLines: state.desktopCmdTerminalLines,
+                  processes: filteredDesktopProcesses,
+                  processFilter: state.desktopCmdProcessFilter,
+                  systemStats: state.desktopCmdSystemStats,
+                  onTabChange: (tab) => {
+                    void setDesktopTab(state, tab);
+                  },
+                  onNavigate: (path) => {
+                    void loadDesktopDirectory(state, path);
+                  },
+                  onOpenFile: (path) => {
+                    void openDesktopFile(state, path);
+                  },
+                  onRunCommand: (cmd) => {
+                    void runDesktopCommand(state, cmd);
+                  },
+                  onClearTerminal: () => clearDesktopTerminal(state),
+                  onKillProcess: (pid) => {
+                    void killDesktopProcess(state, pid);
+                  },
+                  onProcessFilterChange: (value) => setDesktopProcessFilter(state, value),
+                  onRefresh: () => {
+                    void refreshDesktopPanel(state);
+                  },
                 }),
               )
             : nothing

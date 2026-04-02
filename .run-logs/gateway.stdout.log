@@ -1,2 +1,17 @@
-2026-03-31T21:04:25.231+03:00 [gateway] Control UI assets missing; building (ui:build, auto-installs UI deps)…
-2026-03-31T21:04:31.932+03:00 [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root C:\Users\User\.openclaw\canvas)
+2026-04-02T19:57:12.990+03:00 [gateway] force: no listeners on port 18789
+2026-04-02T19:57:35.396+03:00 [gateway] Control UI assets missing; building (ui:build, auto-installs UI deps)…
+2026-04-02T19:57:39.092+03:00 [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root C:\Users\User\.openclaw\canvas)
+2026-04-02T19:57:40.178+03:00 [heartbeat] started
+2026-04-02T19:57:40.188+03:00 [health-monitor] started (interval: 300s, startup-grace: 60s, channel-connect-grace: 120s)
+2026-04-02T19:57:40.361+03:00 [telegram] autoSelectFamily=true (default-node22)
+2026-04-02T19:57:40.367+03:00 [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-04-02T19:57:40.477+03:00 [secrets-hot-reload] Watching C:\Users\User\.openclaw\agents\main\agent\auth-profiles.json
+2026-04-02T19:57:40.486+03:00 [gateway] agent model: openai/gpt-4.1
+2026-04-02T19:57:40.492+03:00 [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 25104)
+2026-04-02T19:57:40.498+03:00 [gateway] log file: C:\Users\User\AppData\Local\Temp\openclaw\openclaw-2026-04-02.log
+2026-04-02T19:57:40.583+03:00 [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=token)
+2026-04-02T19:57:41.044+03:00 [telegram] [default] starting provider (@openaceclawbot)
+2026-04-02T19:57:41.061+03:00 [telegram] autoSelectFamily=true (default-node22)
+2026-04-02T19:57:41.066+03:00 [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-04-02T19:57:55.722+03:00 [ws] webchat connected conn=a46a7d8f-7a06-4879-b84f-d72bba3cf0fb remote=127.0.0.1 client=openclaw-control-ui webchat v2026.3.14
+2026-04-02T19:57:55.772+03:00 [ws] ⇄ res ✗ ace.files.list 0ms errorCode=INVALID_REQUEST errorMessage=This method is restricted to authenticated local connections. conn=a46a7d8f…f0fb id=2de242e2…3595
