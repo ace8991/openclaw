@@ -2,12 +2,12 @@ import { t } from "../i18n/index.ts";
 import type { IconName } from "./icons.js";
 
 export const TAB_GROUPS = [
-  { label: "chat", tabs: ["chat"] },
+  { label: "chat", tabs: ["chat", "coWork"] },
   {
     label: "control",
     tabs: ["overview", "channels", "apiKeys", "instances", "sessions", "usage", "cron"],
   },
-  { label: "agent", tabs: ["agents", "skills", "nodes"] },
+  { label: "agent", tabs: ["aceCode", "desktopCmd", "agents", "skills", "nodes"] },
   {
     label: "settings",
     tabs: [
@@ -35,6 +35,9 @@ export type Tab =
   | "skills"
   | "nodes"
   | "chat"
+  | "coWork"
+  | "aceCode"
+  | "desktopCmd"
   | "config"
   | "communications"
   | "appearance"
@@ -56,6 +59,9 @@ const TAB_PATHS: Record<Tab, string> = {
   skills: "/skills",
   nodes: "/nodes",
   chat: "/chat",
+  coWork: "/cowork",
+  aceCode: "/ace-code",
+  desktopCmd: "/desktop",
   config: "/config",
   communications: "/communications",
   appearance: "/appearance",
@@ -171,6 +177,12 @@ export function iconForTab(tab: Tab): IconName {
       return "zap";
     case "nodes":
       return "monitor";
+    case "coWork":
+      return "folder";
+    case "aceCode":
+      return "code";
+    case "desktopCmd":
+      return "desktop";
     case "config":
       return "settings";
     case "communications":

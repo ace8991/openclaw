@@ -142,6 +142,9 @@ const lazyLogs = createLazy(() => import("./views/logs.ts"));
 const lazyNodes = createLazy(() => import("./views/nodes.ts"));
 const lazySessions = createLazy(() => import("./views/sessions.ts"));
 const lazySkills = createLazy(() => import("./views/skills.ts"));
+const lazyAceCode = createLazy(() => import("./views/ace-code.ts"));
+const lazyCoWork = createLazy(() => import("./views/cowork.ts"));
+const lazyDesktopCmd = createLazy(() => import("./views/desktop-commander-panel.ts"));
 
 function lazyRender<M>(getter: () => M | null, render: (mod: M) => unknown) {
   const mod = getter();
@@ -1994,6 +1997,65 @@ export function renderApp(state: AppViewState) {
                   onRefresh: () => loadLogs(state, { reset: true }),
                   onExport: (lines, label) => state.exportLogs(lines, label),
                   onScroll: (event) => state.handleLogsScroll(event),
+                }),
+              )
+            : nothing
+        }
+
+        ${
+          state.tab === "aceCode"
+            ? lazyRender(lazyAceCode, (m) =>
+                m.renderAceCode({
+                  workspacePath: state.basePath ?? ".",
+                  files: [],
+                  diffs: [],
+                  terminalLines: [],
+                  activeFile: null,
+                  activeFileContent: null,
+                  connected: state.connected,
+                  onFileSelect: () => {},
+                  onRunCommand: () => {},
+                  onClear: () => {},
+                  onRefreshFiles: () => {},
+                }),
+              )
+            : nothing
+        }
+
+        ${
+          state.tab === "coWork"
+            ? lazyRender(lazyCoWork, (m) =>
+                m.renderCoWork({
+                  projects: [],
+                  activeProjectId: null,
+                  connected: state.connected,
+                  onCreateProject: () => {},
+                  onSelectProject: () => {},
+                  onDeleteProject: () => {},
+                  onUpdateProject: () => {},
+                  onOpenInChat: () => {},
+                }),
+              )
+            : nothing
+        }
+
+        ${
+          state.tab === "desktopCmd"
+            ? lazyRender(lazyDesktopCmd, (m) =>
+                m.renderDesktopCommander({
+                  connected: state.connected,
+                  activeTab: "files",
+                  currentPath: "/",
+                  files: [],
+                  terminalLines: [],
+                  processes: [],
+                  systemStats: null,
+                  onTabChange: () => {},
+                  onNavigate: () => {},
+                  onRunCommand: () => {},
+                  onClearTerminal: () => {},
+                  onKillProcess: () => {},
+                  onRefresh: () => {},
                 }),
               )
             : nothing
