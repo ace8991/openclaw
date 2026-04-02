@@ -92,7 +92,7 @@ import {
 import "./components/dashboard-header.ts";
 import { buildExternalLinkRel, EXTERNAL_LINK_TARGET } from "./external-link.ts";
 import { icons } from "./icons.ts";
-import { normalizeBasePath, TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation.ts";
+import { normalizeBasePath, pathForTab, TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation.ts";
 import { agentLogoUrl } from "./views/agents-utils.ts";
 import {
   resolveAgentConfig,
@@ -446,6 +446,22 @@ export function renderApp(state: AppViewState) {
             <dashboard-header .tab=${state.tab}></dashboard-header>
           </div>
           <div class="topnav-shell__actions">
+            <a
+              class="topbar-quick-btn ${state.tab === "aceCode" ? "topbar-quick-btn--active" : ""}"
+              href=${pathForTab("aceCode", state.basePath)}
+              @click=${(e: MouseEvent) => { e.preventDefault(); state.setTab("aceCode"); }}
+              title="Ace Code"
+            >
+              ${icons.code} <span class="topbar-quick-label">Code</span>
+            </a>
+            <a
+              class="topbar-quick-btn ${state.tab === "coWork" ? "topbar-quick-btn--active" : ""}"
+              href=${pathForTab("coWork", state.basePath)}
+              @click=${(e: MouseEvent) => { e.preventDefault(); state.setTab("coWork"); }}
+              title="CoWork"
+            >
+              ${icons.folder} <span class="topbar-quick-label">CoWork</span>
+            </a>
             <button
               class="topbar-search"
               @click=${() => {

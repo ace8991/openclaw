@@ -278,6 +278,9 @@
     flex: 1;
   }
 
+  .topbar-quick-label { display: none; }
+  .topbar-quick-btn { padding: 6px 8px; }
+
   .topbar-theme-mode {
     display: none;
   }
