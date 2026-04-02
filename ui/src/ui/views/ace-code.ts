@@ -1,12 +1,15 @@
 import { html, nothing, type TemplateResult } from "lit";
 import { icons } from "../icons.ts";
 
+/* ── Types ── */
+
 export type FileEntry = {
   name: string;
   path: string;
   type: "file" | "dir";
   size?: number;
   modified?: boolean;
+  language?: string;
 };
 
 export type FileDiff = {
@@ -16,6 +19,13 @@ export type FileDiff = {
   status: "added" | "modified" | "deleted";
 };
 
+export type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+  files?: string[];
+};
+
 export type AceCodeProps = {
   workspacePath: string;
   files: FileEntry[];
@@ -23,36 +33,109 @@ export type AceCodeProps = {
   terminalLines: string[];
   activeFile: string | null;
   activeFileContent: string | null;
+  openTabs: FileEntry[];
+  chatMessages: ChatMessage[];
+  chatLoading: boolean;
+  connected: boolean;
+  sidebarOpen: boolean;
   onFileSelect: (path: string) => void;
+  onCloseTab: (path: string) => void;
   onRunCommand: (cmd: string) => void;
   onClear: () => void;
   onRefreshFiles: () => void;
-  connected: boolean;
+  onSendMessage: (msg: string, files?: File[]) => void;
+  onToggleSidebar: () => void;
 };
 
-function renderFileTree(files: FileEntry[], props: AceCodeProps): TemplateResult {
-  if (files.length === 0) {
-    return html`<div class="ace-empty">No files loaded. Click refresh.</div>`;
-  }
+/* ── Helpers ── */
+
+function langFromName(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  const map: Record<string, string> = {
+    ts: "TypeScript", tsx: "TypeScript", js: "JavaScript", jsx: "JavaScript",
+    py: "Python", rs: "Rust", go: "Go", css: "CSS", html: "HTML",
+    json: "JSON", md: "Markdown", yaml: "YAML", yml: "YAML",
+    sh: "Shell", bash: "Shell", sql: "SQL", java: "Java", cpp: "C++",
+    c: "C", rb: "Ruby", php: "PHP", swift: "Swift", kt: "Kotlin",
+  };
+  return map[ext] ?? ext.toUpperCase();
+}
+
+function formatTime(ts: number): string {
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+/* ── File sidebar ── */
+
+function renderFileSidebar(props: AceCodeProps): TemplateResult {
   return html`
-    <div class="ace-file-list">
-      ${files.map(
-        (f) => html`
-          <button
-            class="ace-file-item ${f.path === props.activeFile ? "ace-file-item--active" : ""} ${f.modified ? "ace-file-item--modified" : ""}"
-            @click=${() => props.onFileSelect(f.path)}
-          >
-            <span class="ace-file-icon">${f.type === "dir" ? icons.folder : icons.fileText}</span>
-            <span class="ace-file-name">${f.name}</span>
-          </button>
-        `,
-      )}
+    <aside class="ace-sidebar ${props.sidebarOpen ? "" : "ace-sidebar--hidden"}">
+      <div class="ace-sidebar-top">
+        <span class="ace-sidebar-label">Explorer</span>
+        <button class="ace-icon-btn" @click=${props.onRefreshFiles} title="Refresh">
+          ${icons.loader}
+        </button>
+      </div>
+      <div class="ace-sidebar-section">
+        <span class="ace-section-title">WORKSPACE</span>
+        <span class="ace-section-path">${props.workspacePath}</span>
+      </div>
+      <div class="ace-file-tree">
+        ${props.files.length === 0
+          ? html`<div class="ace-tree-empty">No files loaded</div>`
+          : props.files.map(
+              (f) => html`
+                <button
+                  class="ace-tree-item ${f.path === props.activeFile ? "ace-tree-item--active" : ""}"
+                  @click=${() => props.onFileSelect(f.path)}
+                >
+                  <span class="ace-tree-icon">${f.type === "dir" ? icons.folder : icons.fileText}</span>
+                  <span class="ace-tree-name">${f.name}</span>
+                  ${f.modified ? html`<span class="ace-tree-badge">M</span>` : nothing}
+                </button>
+              `,
+            )}
+      </div>
+    </aside>
+  `;
+}
+
+/* ── Tab bar ── */
+
+function renderTabBar(props: AceCodeProps): TemplateResult {
+  return html`
+    <div class="ace-tabbar">
+      <button class="ace-icon-btn ace-sidebar-toggle" @click=${props.onToggleSidebar} title="Toggle sidebar">
+        ${icons.menu}
+      </button>
+      <div class="ace-tabs-scroll">
+        ${props.openTabs.map(
+          (tab) => html`
+            <div class="ace-tab ${tab.path === props.activeFile ? "ace-tab--active" : ""}">
+              <button class="ace-tab__label" @click=${() => props.onFileSelect(tab.path)}>
+                ${icons.fileText}
+                <span>${tab.name}</span>
+              </button>
+              <button class="ace-tab__close" @click=${() => props.onCloseTab(tab.path)}>
+                ${icons.x}
+              </button>
+            </div>
+          `,
+        )}
+      </div>
+      <div class="ace-tabbar-actions">
+        <span class="ace-lang-badge">${props.activeFile ? langFromName(props.activeFile) : ""}</span>
+      </div>
     </div>
   `;
 }
 
-function renderCodeViewer(props: AceCodeProps): TemplateResult {
+/* ── Code viewer with diff ── */
+
+function renderCodeArea(props: AceCodeProps): TemplateResult {
   const diff = props.diffs.find((d) => d.path === props.activeFile);
+
   if (diff) {
     const beforeLines = diff.before.split("\n");
     const afterLines = diff.after.split("\n");
@@ -62,126 +145,192 @@ function renderCodeViewer(props: AceCodeProps): TemplateResult {
       const b = i < beforeLines.length ? beforeLines[i] : undefined;
       const a = i < afterLines.length ? afterLines[i] : undefined;
       if (b !== a) {
-        if (b !== undefined) {
-          lines.push({ text: `- ${b}`, cls: "ace-diff-removed" });
-        }
-        if (a !== undefined) {
-          lines.push({ text: `+ ${a}`, cls: "ace-diff-added" });
-        }
+        if (b !== undefined) lines.push({ text: `- ${b}`, cls: "ace-line--removed" });
+        if (a !== undefined) lines.push({ text: `+ ${a}`, cls: "ace-line--added" });
       } else if (a !== undefined) {
-        lines.push({ text: `  ${a}`, cls: "ace-diff-unchanged" });
+        lines.push({ text: `  ${a}`, cls: "" });
       }
     }
     return html`
-      <div class="ace-code-viewer">
-        <div class="ace-code-header">
-          <span class="ace-code-filename">${props.activeFile}</span>
-          <span class="ace-diff-badge">${diff.status}</span>
+      <div class="ace-code-area">
+        <div class="ace-diff-header">
+          <span class="ace-diff-badge ace-diff-badge--${diff.status}">${diff.status}</span>
+          <span class="ace-diff-path">${diff.path}</span>
+          <button class="ace-icon-btn" @click=${() => navigator.clipboard.writeText(diff.after)} title="Copy">
+            ${icons.copy}
+          </button>
         </div>
-        <pre class="ace-code-content">${lines.map(
-          (l, i) =>
-            html`<div class="${l.cls}"><span class="ace-line-num">${i + 1}</span>${l.text}</div>`,
+        <pre class="ace-code-pre">${lines.map(
+          (l, i) => html`<div class="ace-code-line ${l.cls}"><span class="ace-ln">${i + 1}</span><span class="ace-lc">${l.text}</span></div>`,
         )}</pre>
       </div>
     `;
   }
 
   if (props.activeFileContent) {
-    const contentLines = props.activeFileContent.split("\n");
+    const lines = props.activeFileContent.split("\n");
     return html`
-      <div class="ace-code-viewer">
-        <div class="ace-code-header">
-          <span class="ace-code-filename">${props.activeFile}</span>
-          <button
-            class="ace-copy-btn"
-            @click=${() => navigator.clipboard.writeText(props.activeFileContent ?? "")}
-          >
-            ${icons.copy} Copy
+      <div class="ace-code-area">
+        <div class="ace-diff-header">
+          <span class="ace-diff-path">${props.activeFile}</span>
+          <button class="ace-icon-btn" @click=${() => navigator.clipboard.writeText(props.activeFileContent ?? "")} title="Copy">
+            ${icons.copy}
           </button>
         </div>
-        <pre class="ace-code-content">${contentLines.map(
-          (line, i) =>
-            html`<div class="ace-diff-unchanged"><span class="ace-line-num">${i + 1}</span>${line}</div>`,
+        <pre class="ace-code-pre">${lines.map(
+          (line, i) => html`<div class="ace-code-line"><span class="ace-ln">${i + 1}</span><span class="ace-lc">${line}</span></div>`,
         )}</pre>
       </div>
     `;
   }
 
   return html`
-    <div class="ace-code-viewer ace-code-viewer--empty">
+    <div class="ace-code-area ace-code-area--empty">
       <div class="ace-empty-state">
         ${icons.code}
-        <p>Select a file to view its contents</p>
+        <h3>Ace Code</h3>
+        <p>Your AI coding agent. Select a file from the sidebar or describe what you want to build below.</p>
       </div>
     </div>
   `;
 }
 
-function renderTerminal(props: AceCodeProps): TemplateResult {
-  let cmdInput = "";
+/* ── Chat / prompt area ── */
+
+function renderChat(props: AceCodeProps): TemplateResult {
   return html`
-    <div class="ace-terminal">
-      <div class="ace-terminal-header">
-        <span>Terminal</span>
-        <button class="ace-term-btn" @click=${props.onClear}>${icons.x} Clear</button>
-      </div>
-      <div class="ace-terminal-output">
-        ${props.terminalLines.length === 0
-          ? html`<div class="ace-term-hint">Type a command below to execute via the AI agent...</div>`
-          : props.terminalLines.map(
-              (line) => html`
-                <div class="${line.startsWith("$") ? "ace-term-cmd" : line.startsWith("ERR") ? "ace-term-error" : "ace-term-output"}">
-                  ${line}
-                </div>
-              `,
-            )}
-      </div>
-      <div class="ace-terminal-input">
-        <span class="ace-term-prompt">$</span>
-        <input
-          type="text"
-          placeholder="Enter command..."
-          ?disabled=${!props.connected}
-          @keydown=${(e: KeyboardEvent) => {
-            if (e.key === "Enter") {
-              const input = e.target as HTMLInputElement;
-              if (input.value.trim()) {
-                props.onRunCommand(input.value.trim());
-                cmdInput = "";
-                input.value = "";
+    <div class="ace-chat">
+      ${props.chatMessages.length > 0
+        ? html`
+            <div class="ace-chat-messages">
+              ${props.chatMessages.map(
+                (msg) => html`
+                  <div class="ace-msg ace-msg--${msg.role}">
+                    <div class="ace-msg-bubble">
+                      ${msg.files && msg.files.length > 0
+                        ? html`<div class="ace-msg-files">
+                            ${msg.files.map((f) => html`<span class="ace-msg-file">${icons.fileText} ${f}</span>`)}
+                          </div>`
+                        : nothing}
+                      <div class="ace-msg-text">${msg.content}</div>
+                    </div>
+                    <span class="ace-msg-time">${formatTime(msg.timestamp)}</span>
+                  </div>
+                `,
+              )}
+              ${props.chatLoading
+                ? html`<div class="ace-msg ace-msg--assistant">
+                    <div class="ace-msg-bubble ace-msg-loading">
+                      <span class="ace-dot"></span><span class="ace-dot"></span><span class="ace-dot"></span>
+                    </div>
+                  </div>`
+                : nothing}
+            </div>
+          `
+        : nothing}
+
+      <div class="ace-prompt">
+        <div class="ace-prompt-box">
+          <button
+            class="ace-prompt-attach"
+            title="Attach files"
+            @click=${() => {
+              const input = document.createElement("input");
+              input.type = "file";
+              input.multiple = true;
+              input.onchange = () => {
+                if (input.files && input.files.length > 0) {
+                  const textarea = document.querySelector(".ace-prompt-input") as HTMLTextAreaElement | null;
+                  const msg = textarea?.value?.trim() ?? "";
+                  props.onSendMessage(msg || "Analyze these files", Array.from(input.files));
+                  if (textarea) textarea.value = "";
+                }
+              };
+              input.click();
+            }}
+          >
+            ${icons.paperclip}
+          </button>
+          <textarea
+            class="ace-prompt-input"
+            placeholder="Ask Ace to write code, fix bugs, or explain files..."
+            rows="1"
+            ?disabled=${!props.connected}
+            @input=${(e: Event) => {
+              const ta = e.target as HTMLTextAreaElement;
+              ta.style.height = "auto";
+              ta.style.height = Math.min(ta.scrollHeight, 150) + "px";
+            }}
+            @keydown=${(e: KeyboardEvent) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                const ta = e.target as HTMLTextAreaElement;
+                if (ta.value.trim()) {
+                  props.onSendMessage(ta.value.trim());
+                  ta.value = "";
+                  ta.style.height = "auto";
+                }
               }
-            }
-          }}
-          @input=${(e: Event) => {
-            cmdInput = (e.target as HTMLInputElement).value;
-          }}
-          .value=${cmdInput}
-        />
+            }}
+          ></textarea>
+          <button
+            class="ace-prompt-send"
+            title="Send message"
+            ?disabled=${!props.connected}
+            @click=${() => {
+              const ta = document.querySelector(".ace-prompt-input") as HTMLTextAreaElement | null;
+              if (ta && ta.value.trim()) {
+                props.onSendMessage(ta.value.trim());
+                ta.value = "";
+                ta.style.height = "auto";
+              }
+            }}
+          >
+            ${icons.send}
+          </button>
+        </div>
+        <div class="ace-prompt-hint">
+          <span>Press Enter to send, Shift+Enter for new line</span>
+          ${props.connected
+            ? html`<span class="ace-status ace-status--ok">Connected</span>`
+            : html`<span class="ace-status ace-status--off">Disconnected</span>`}
+        </div>
       </div>
     </div>
   `;
 }
+
+/* ── Terminal drawer ── */
+
+function renderTerminal(props: AceCodeProps): TemplateResult {
+  if (props.terminalLines.length === 0) return html``;
+  return html`
+    <div class="ace-terminal-drawer">
+      <div class="ace-terminal-drawer-header">
+        <span>Terminal Output</span>
+        <button class="ace-icon-btn" @click=${props.onClear}>${icons.x}</button>
+      </div>
+      <div class="ace-terminal-drawer-body">
+        ${props.terminalLines.map(
+          (line) => html`<div class="${line.startsWith("$") ? "ace-tout--cmd" : line.startsWith("ERR") ? "ace-tout--err" : "ace-tout"}">${line}</div>`,
+        )}
+      </div>
+    </div>
+  `;
+}
+
+/* ── Main export ── */
 
 export function renderAceCode(props: AceCodeProps): TemplateResult {
   return html`
-    <div class="ace-code-panel">
-      <div class="ace-code-topbar">
-        <span class="ace-code-title">${icons.code} Ace Code</span>
-        <span class="ace-code-path">${props.workspacePath}</span>
-        <button class="ace-refresh-btn" @click=${props.onRefreshFiles} title="Refresh files">
-          ${icons.loader}
-        </button>
+    <div class="ace-panel">
+      ${renderFileSidebar(props)}
+      <div class="ace-main">
+        ${props.openTabs.length > 0 || props.activeFile ? renderTabBar(props) : nothing}
+        ${renderCodeArea(props)}
+        ${renderTerminal(props)}
+        ${renderChat(props)}
       </div>
-      <div class="ace-code-body">
-        <aside class="ace-sidebar">
-          <div class="ace-sidebar-header">Files</div>
-          ${renderFileTree(props.files, props)}
-        </aside>
-        <div class="ace-main">
-          ${renderCodeViewer(props)}
-        </div>
-      </div>
-      ${renderTerminal(props)}
     </div>
   `;
 }

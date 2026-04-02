@@ -2028,11 +2028,18 @@ export function renderApp(state: AppViewState) {
                   terminalLines: [],
                   activeFile: null,
                   activeFileContent: null,
+                  openTabs: [],
+                  chatMessages: [],
+                  chatLoading: false,
                   connected: state.connected,
+                  sidebarOpen: true,
                   onFileSelect: () => {},
+                  onCloseTab: () => {},
                   onRunCommand: () => {},
                   onClear: () => {},
                   onRefreshFiles: () => {},
+                  onSendMessage: () => {},
+                  onToggleSidebar: () => {},
                 }),
               )
             : nothing
