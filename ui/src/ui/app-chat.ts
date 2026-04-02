@@ -36,6 +36,7 @@ export type ChatHost = {
   refreshSessionsAfterChat: Set<string>;
   /** Callback for slash-command side effects that need app-level access. */
   onSlashAction?: (action: string) => void;
+  decorateOutgoingMessage?: (message: string) => string;
 };
 
 export const CHAT_SESSIONS_ACTIVE_MINUTES = 120;
@@ -198,29 +199,29 @@ export async function handleSendChat(
     return;
   }
   const previousDraft = host.chatMessage;
-  const message = (messageOverride ?? host.chatMessage).trim();
+  const rawMessage = (messageOverride ?? host.chatMessage).trim();
   const attachments = host.chatAttachments ?? [];
   const attachmentsToSend = messageOverride == null ? attachments : [];
   const hasAttachments = attachmentsToSend.length > 0;
 
-  if (!message && !hasAttachments) {
+  if (!rawMessage && !hasAttachments) {
     return;
   }
 
-  if (isChatStopCommand(message)) {
+  if (isChatStopCommand(rawMessage)) {
     await handleAbortChat(host);
     return;
   }
 
   // Intercept local slash commands (/status, /model, /compact, etc.)
-  const parsed = parseSlashCommand(message);
+  const parsed = parseSlashCommand(rawMessage);
   if (parsed?.command.executeLocal) {
     if (isChatBusy(host) && shouldQueueLocalSlashCommand(parsed.command.name)) {
       if (messageOverride == null) {
         host.chatMessage = "";
         host.chatAttachments = [];
       }
-      enqueueChatMessage(host, message, undefined, isChatResetCommand(message), {
+      enqueueChatMessage(host, rawMessage, undefined, isChatResetCommand(rawMessage), {
         args: parsed.args,
         name: parsed.command.name,
       });
@@ -238,7 +239,8 @@ export async function handleSendChat(
     return;
   }
 
-  const refreshSessions = isChatResetCommand(message);
+  const message = host.decorateOutgoingMessage ? host.decorateOutgoingMessage(rawMessage) : rawMessage;
+  const refreshSessions = isChatResetCommand(rawMessage);
   if (messageOverride == null) {
     host.chatMessage = "";
     host.chatAttachments = [];

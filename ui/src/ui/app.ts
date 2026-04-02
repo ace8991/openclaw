@@ -55,12 +55,20 @@ import type { AppViewState } from "./app-view-state.ts";
 import { normalizeAssistantIdentity } from "./assistant-identity.ts";
 import { exportChatMarkdown } from "./chat/export.ts";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity.ts";
+import { buildCoWorkChatMessage } from "./controllers/cowork.ts";
 import type {
   ApiKeyFormState,
   ApiKeyListEntry,
   ApiKeysToast,
 } from "./controllers/api-keys.ts";
+import type { FileDiff, FileEntry } from "./views/ace-code.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
+import type { Project } from "./views/cowork.ts";
+import type {
+  DcFileEntry,
+  DcProcess,
+  DcSystemStats,
+} from "./views/desktop-commander-panel.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
 import type { SkillMessage } from "./controllers/skills.ts";
@@ -191,6 +199,33 @@ export class OpenClawApp extends LitElement {
   @state() apiKeysFormError: string | null = null;
   @state() apiKeysToast: ApiKeysToast | null = null;
   @state() apiKeysInvalidCount = 0;
+  @state() aceCodeLoading = false;
+  @state() aceCodeError: string | null = null;
+  @state() aceCodeWorkspacePath = ".";
+  @state() aceCodeFiles: FileEntry[] = [];
+  @state() aceCodeDiffs: FileDiff[] = [];
+  @state() aceCodeTerminalLines: string[] = [];
+  @state() aceCodeActiveFile: string | null = null;
+  @state() aceCodeActiveFileContent: string | null = null;
+  @state() aceCodeOpenTabs: FileEntry[] = [];
+  @state() aceCodeSidebarOpen = true;
+  @state() coWorkLoading = false;
+  @state() coWorkError: string | null = null;
+  @state() coWorkProjectsPath: string | null = null;
+  @state() coWorkProjects: Project[] = [];
+  @state() activeProjectId: string | null = null;
+  @state() desktopCmdLoading = false;
+  @state() desktopCmdError: string | null = null;
+  @state() desktopCmdActiveTab: "files" | "terminal" | "processes" | "system" = "files";
+  @state() desktopCmdCurrentPath = "";
+  @state() desktopCmdRoots: string[] = [];
+  @state() desktopCmdFiles: DcFileEntry[] = [];
+  @state() desktopCmdSelectedFile: string | null = null;
+  @state() desktopCmdSelectedFileContent: string | null = null;
+  @state() desktopCmdTerminalLines: string[] = [];
+  @state() desktopCmdProcesses: DcProcess[] = [];
+  @state() desktopCmdProcessFilter = "";
+  @state() desktopCmdSystemStats: DcSystemStats | null = null;
 
   onSlashAction?: (action: string) => void;
 
@@ -632,6 +667,10 @@ export class OpenClawApp extends LitElement {
       messageOverride,
       opts,
     );
+  }
+
+  decorateOutgoingMessage(message: string) {
+    return buildCoWorkChatMessage(this, message);
   }
 
   async handleWhatsAppStart(force: boolean) {

@@ -92,7 +92,7 @@ import {
 import "./components/dashboard-header.ts";
 import { buildExternalLinkRel, EXTERNAL_LINK_TARGET } from "./external-link.ts";
 import { icons } from "./icons.ts";
-import { normalizeBasePath, pathForTab, TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation.ts";
+import { normalizeBasePath, TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation.ts";
 import { agentLogoUrl } from "./views/agents-utils.ts";
 import {
   resolveAgentConfig,
@@ -142,9 +142,6 @@ const lazyLogs = createLazy(() => import("./views/logs.ts"));
 const lazyNodes = createLazy(() => import("./views/nodes.ts"));
 const lazySessions = createLazy(() => import("./views/sessions.ts"));
 const lazySkills = createLazy(() => import("./views/skills.ts"));
-const lazyAceCode = createLazy(() => import("./views/ace-code.ts"));
-const lazyCoWork = createLazy(() => import("./views/cowork.ts"));
-const lazyDesktopCmd = createLazy(() => import("./views/desktop-commander-panel.ts"));
 
 function lazyRender<M>(getter: () => M | null, render: (mod: M) => unknown) {
   const mod = getter();
@@ -446,22 +443,6 @@ export function renderApp(state: AppViewState) {
             <dashboard-header .tab=${state.tab}></dashboard-header>
           </div>
           <div class="topnav-shell__actions">
-            <a
-              class="topbar-quick-btn ${state.tab === "aceCode" ? "topbar-quick-btn--active" : ""}"
-              href=${pathForTab("aceCode", state.basePath)}
-              @click=${(e: MouseEvent) => { e.preventDefault(); state.setTab("aceCode"); }}
-              title="Ace Code"
-            >
-              ${icons.code} <span class="topbar-quick-label">Code</span>
-            </a>
-            <a
-              class="topbar-quick-btn ${state.tab === "coWork" ? "topbar-quick-btn--active" : ""}"
-              href=${pathForTab("coWork", state.basePath)}
-              @click=${(e: MouseEvent) => { e.preventDefault(); state.setTab("coWork"); }}
-              title="CoWork"
-            >
-              ${icons.folder} <span class="topbar-quick-label">CoWork</span>
-            </a>
             <button
               class="topbar-search"
               @click=${() => {
@@ -2013,72 +1994,6 @@ export function renderApp(state: AppViewState) {
                   onRefresh: () => loadLogs(state, { reset: true }),
                   onExport: (lines, label) => state.exportLogs(lines, label),
                   onScroll: (event) => state.handleLogsScroll(event),
-                }),
-              )
-            : nothing
-        }
-
-        ${
-          state.tab === "aceCode"
-            ? lazyRender(lazyAceCode, (m) =>
-                m.renderAceCode({
-                  workspacePath: state.basePath ?? ".",
-                  files: [],
-                  diffs: [],
-                  terminalLines: [],
-                  activeFile: null,
-                  activeFileContent: null,
-                  openTabs: [],
-                  chatMessages: [],
-                  chatLoading: false,
-                  connected: state.connected,
-                  sidebarOpen: true,
-                  onFileSelect: () => {},
-                  onCloseTab: () => {},
-                  onRunCommand: () => {},
-                  onClear: () => {},
-                  onRefreshFiles: () => {},
-                  onSendMessage: () => {},
-                  onToggleSidebar: () => {},
-                }),
-              )
-            : nothing
-        }
-
-        ${
-          state.tab === "coWork"
-            ? lazyRender(lazyCoWork, (m) =>
-                m.renderCoWork({
-                  projects: [],
-                  activeProjectId: null,
-                  connected: state.connected,
-                  onCreateProject: () => {},
-                  onSelectProject: () => {},
-                  onDeleteProject: () => {},
-                  onUpdateProject: () => {},
-                  onOpenInChat: () => {},
-                }),
-              )
-            : nothing
-        }
-
-        ${
-          state.tab === "desktopCmd"
-            ? lazyRender(lazyDesktopCmd, (m) =>
-                m.renderDesktopCommander({
-                  connected: state.connected,
-                  activeTab: "files",
-                  currentPath: "/",
-                  files: [],
-                  terminalLines: [],
-                  processes: [],
-                  systemStats: null,
-                  onTabChange: () => {},
-                  onNavigate: () => {},
-                  onRunCommand: () => {},
-                  onClearTerminal: () => {},
-                  onKillProcess: () => {},
-                  onRefresh: () => {},
                 }),
               )
             : nothing

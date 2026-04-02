@@ -24,6 +24,8 @@ export type DcSystemStats = {
   diskFree: string;
   diskTotal: string;
   os: string;
+  network?: string[];
+  drives?: Array<{ name: string; free: string; total: string }>;
 };
 
 type DcTab = "files" | "terminal" | "processes" | "system";
@@ -32,15 +34,21 @@ export type DesktopCommanderProps = {
   connected: boolean;
   activeTab: DcTab;
   currentPath: string;
+  roots: string[];
   files: DcFileEntry[];
+  selectedFile: string | null;
+  selectedFileContent: string | null;
   terminalLines: string[];
   processes: DcProcess[];
+  processFilter: string;
   systemStats: DcSystemStats | null;
   onTabChange: (tab: DcTab) => void;
   onNavigate: (path: string) => void;
+  onOpenFile: (path: string) => void;
   onRunCommand: (cmd: string) => void;
   onClearTerminal: () => void;
   onKillProcess: (pid: number) => void;
+  onProcessFilterChange: (value: string) => void;
   onRefresh: () => void;
 };
 
@@ -83,8 +91,17 @@ function renderFileBrowser(props: DesktopCommanderProps): TemplateResult {
   const pathParts = props.currentPath.split(/[/\\]/).filter(Boolean);
   return html`
     <div class="dc-files">
+      ${props.roots.length > 0
+        ? html`
+            <div class="dc-root-shortcuts">
+              ${props.roots.map(
+                (root) => html`<button class="dc-root-btn" @click=${() => props.onNavigate(root)}>${root}</button>`,
+              )}
+            </div>
+          `
+        : nothing}
       <div class="dc-breadcrumb">
-        <button class="dc-breadcrumb__item" @click=${() => props.onNavigate("/")}>Root</button>
+        <button class="dc-breadcrumb__item" @click=${() => props.onNavigate(props.roots[0] ?? props.currentPath)}>Root</button>
         ${pathParts.map((part, i) => {
           const path = pathParts.slice(0, i + 1).join("/");
           return html`
@@ -94,36 +111,50 @@ function renderFileBrowser(props: DesktopCommanderProps): TemplateResult {
         })}
         <button class="dc-refresh-btn" @click=${props.onRefresh} title="Refresh">${icons.loader}</button>
       </div>
-      <div class="dc-file-list">
-        ${props.currentPath !== "/"
-          ? html`
-              <button class="dc-file-item dc-file-item--dir" @click=${() => {
-                const parent = pathParts.slice(0, -1).join("/") || "/";
-                props.onNavigate(parent);
-              }}>
-                ${icons.folder} <span>..</span>
-              </button>
-            `
-          : nothing}
-        ${props.files.length === 0
-          ? html`<div class="dc-empty">No files. Click refresh to load directory.</div>`
-          : props.files.map(
-              (f) => html`
-                <button
-                  class="dc-file-item ${f.type === "dir" ? "dc-file-item--dir" : ""}"
-                  @click=${() => {
-                    if (f.type === "dir") {
-                      props.onNavigate(f.path);
-                    }
-                  }}
-                  title="${f.path}"
-                >
-                  ${f.type === "dir" ? icons.folder : icons.fileText}
-                  <span class="dc-file-name">${f.name}</span>
-                  ${f.size ? html`<span class="dc-file-size">${f.size}</span>` : nothing}
+      <div class="dc-files-layout">
+        <div class="dc-file-list">
+          ${props.currentPath !== "/"
+            ? html`
+                <button class="dc-file-item dc-file-item--dir" @click=${() => {
+                  const parent = pathParts.slice(0, -1).join("/") || props.roots[0] || "/";
+                  props.onNavigate(parent);
+                }}>
+                  ${icons.folder} <span>..</span>
                 </button>
-              `,
-            )}
+              `
+            : nothing}
+          ${props.files.length === 0
+            ? html`<div class="dc-empty">No files. Click refresh to load directory.</div>`
+            : props.files.map(
+                (f) => html`
+                  <button
+                    class="dc-file-item ${f.type === "dir" ? "dc-file-item--dir" : ""}"
+                    @click=${() => {
+                      if (f.type === "dir") {
+                        props.onNavigate(f.path);
+                        return;
+                      }
+                      props.onOpenFile(f.path);
+                    }}
+                    title="${f.path}"
+                  >
+                    ${f.type === "dir" ? icons.folder : icons.fileText}
+                    <span class="dc-file-name">${f.name}</span>
+                    ${f.modified ? html`<span class="dc-file-modified">${f.modified}</span>` : nothing}
+                    ${f.size ? html`<span class="dc-file-size">${f.size}</span>` : nothing}
+                  </button>
+                `,
+              )}
+        </div>
+        <div class="dc-file-preview">
+          <div class="dc-section-label">Preview</div>
+          ${props.selectedFile && props.selectedFileContent != null
+            ? html`
+                <div class="dc-file-preview__path">${props.selectedFile}</div>
+                <pre class="dc-file-preview__content">${props.selectedFileContent}</pre>
+              `
+            : html`<div class="dc-empty">Select a text file to preview it here.</div>`}
+        </div>
       </div>
     </div>
   `;
@@ -178,19 +209,28 @@ function renderProcesses(props: DesktopCommanderProps): TemplateResult {
         <span>${props.processes.length} processes</span>
         <button class="dc-refresh-btn" @click=${props.onRefresh}>${icons.loader} Refresh</button>
       </div>
+      <input
+        class="dc-process-filter"
+        type="text"
+        .value=${props.processFilter}
+        placeholder="Filter by name or PID..."
+        @input=${(e: Event) => props.onProcessFilterChange((e.target as HTMLInputElement).value)}
+      />
       ${props.processes.length === 0
         ? html`<div class="dc-empty">No process data. Click Refresh to load.</div>`
         : html`
             <div class="dc-process-table">
               <div class="dc-process-row dc-process-row--header">
-                <span>Name</span><span>PID</span><span>Memory</span><span></span>
+                <span>Name</span><span>PID</span><span>CPU</span><span>Memory</span><span>Status</span><span></span>
               </div>
               ${props.processes.map(
                 (p) => html`
                   <div class="dc-process-row">
                     <span class="dc-process-name">${p.name}</span>
                     <span class="dc-process-pid">${p.pid}</span>
+                    <span class="dc-process-cpu">${p.cpu ?? "-"}</span>
                     <span class="dc-process-mem">${p.memory ?? "-"}</span>
+                    <span class="dc-process-status">${p.status ?? "-"}</span>
                     <button
                       class="dc-kill-btn"
                       @click=${() => {
@@ -232,6 +272,24 @@ function renderSystemStats(props: DesktopCommanderProps): TemplateResult {
         <span class="dc-stat-label">Disk</span>
         <span class="dc-stat-detail">${stats.diskFree} free / ${stats.diskTotal}</span>
       </div>
+      ${stats.drives && stats.drives.length > 0
+        ? html`
+            <div class="dc-system-list">
+              ${stats.drives.map(
+                (drive) => html`<div class="dc-system-list__row"><span>${drive.name}</span><span>${drive.free} free / ${drive.total}</span></div>`,
+              )}
+            </div>
+          `
+        : nothing}
+      ${stats.network && stats.network.length > 0
+        ? html`
+            <div class="dc-system-list">
+              ${stats.network.map(
+                (entry) => html`<div class="dc-system-list__row"><span>Network</span><span>${entry}</span></div>`,
+              )}
+            </div>
+          `
+        : nothing}
       <button class="dc-refresh-btn dc-refresh-system" @click=${props.onRefresh}>${icons.loader} Refresh</button>
     </div>
   `;

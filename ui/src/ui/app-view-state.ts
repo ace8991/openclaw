@@ -6,6 +6,7 @@ import type {
   ApiKeyListEntry,
   ApiKeysToast,
 } from "./controllers/api-keys.ts";
+import type { FileDiff, FileEntry } from "./views/ace-code.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
@@ -15,6 +16,8 @@ import type { Tab } from "./navigation.ts";
 import type { UiSettings } from "./storage.ts";
 import type { ThemeTransitionContext } from "./theme-transition.ts";
 import type { ResolvedTheme, ThemeMode, ThemeName } from "./theme.ts";
+import type { Project } from "./views/cowork.ts";
+import type { DcFileEntry, DcProcess, DcSystemStats } from "./views/desktop-commander-panel.ts";
 import type {
   AgentsListResult,
   AgentsFilesListResult,
@@ -96,6 +99,33 @@ export type AppViewState = {
   apiKeysFormError: string | null;
   apiKeysToast: ApiKeysToast | null;
   apiKeysInvalidCount: number;
+  aceCodeLoading: boolean;
+  aceCodeError: string | null;
+  aceCodeWorkspacePath: string;
+  aceCodeFiles: FileEntry[];
+  aceCodeDiffs: FileDiff[];
+  aceCodeTerminalLines: string[];
+  aceCodeActiveFile: string | null;
+  aceCodeActiveFileContent: string | null;
+  aceCodeOpenTabs: FileEntry[];
+  aceCodeSidebarOpen: boolean;
+  coWorkLoading: boolean;
+  coWorkError: string | null;
+  coWorkProjectsPath: string | null;
+  coWorkProjects: Project[];
+  activeProjectId: string | null;
+  desktopCmdLoading: boolean;
+  desktopCmdError: string | null;
+  desktopCmdActiveTab: "files" | "terminal" | "processes" | "system";
+  desktopCmdCurrentPath: string;
+  desktopCmdRoots: string[];
+  desktopCmdFiles: DcFileEntry[];
+  desktopCmdSelectedFile: string | null;
+  desktopCmdSelectedFileContent: string | null;
+  desktopCmdTerminalLines: string[];
+  desktopCmdProcesses: DcProcess[];
+  desktopCmdProcessFilter: string;
+  desktopCmdSystemStats: DcSystemStats | null;
   nodesLoading: boolean;
   nodes: Array<Record<string, unknown>>;
   chatNewMessagesBelow: boolean;

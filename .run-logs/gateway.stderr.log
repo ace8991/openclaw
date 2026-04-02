@@ -1,10 +1,19 @@
-(node:14840) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
-(Use `node --trace-deprecation ...` to show where the warning was created)
-2026-03-31T21:04:33.980+03:00 Gateway failed to start: another gateway instance is already listening on ws://127.0.0.1:18789
-If the gateway is supervised, stop it with: openclaw gateway stop
-2026-03-31T21:04:34.596+03:00 Port 18789 is already in use.
-2026-03-31T21:04:34.606+03:00 - pid 2996: "C:\Users\User\node22\node.exe" C:\Users\User\clawdbot\dist\index.js gateway --port 18789 (127.0.0.1:18789)
-2026-03-31T21:04:34.622+03:00 - Another process is listening on this port.
-2026-03-31T21:04:34.709+03:00 Gateway service appears registered. Stop it first.
-2026-03-31T21:04:34.721+03:00 Tip: openclaw gateway stop
-2026-03-31T21:04:34.733+03:00 Or: schtasks /End /TN "OpenClaw Gateway"
+2026-04-02T20:33:18.223+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\acpx)
+2026-04-02T20:33:18.231+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\diagnostics-otel)
+2026-04-02T20:33:18.237+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\diffs)
+2026-04-02T20:33:18.244+03:00 [gateway] [plugins] extension entry escapes package directory: ./setup-entry.js (source=C:\Users\User\clawdbot\dist\extensions\googlechat)
+2026-04-02T20:33:18.255+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\googlechat)
+2026-04-02T20:33:18.263+03:00 [gateway] [plugins] extension entry escapes package directory: ./setup-entry.js (source=C:\Users\User\clawdbot\dist\extensions\matrix)
+2026-04-02T20:33:18.269+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\matrix)
+2026-04-02T20:33:18.278+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\memory-lancedb)
+2026-04-02T20:33:18.287+03:00 [gateway] [plugins] extension entry escapes package directory: ./setup-entry.js (source=C:\Users\User\clawdbot\dist\extensions\msteams)
+2026-04-02T20:33:18.295+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\msteams)
+2026-04-02T20:33:18.302+03:00 [gateway] [plugins] extension entry escapes package directory: ./setup-entry.js (source=C:\Users\User\clawdbot\dist\extensions\nostr)
+2026-04-02T20:33:18.311+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\nostr)
+2026-04-02T20:33:18.318+03:00 [gateway] [plugins] extension entry escapes package directory: ./setup-entry.js (source=C:\Users\User\clawdbot\dist\extensions\tlon)
+2026-04-02T20:33:18.326+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\tlon)
+2026-04-02T20:33:18.332+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\twitch)
+2026-04-02T20:33:18.338+03:00 [gateway] [plugins] extension entry escapes package directory: ./setup-entry.js (source=C:\Users\User\clawdbot\dist\extensions\whatsapp)
+2026-04-02T20:33:18.347+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\whatsapp)
+2026-04-02T20:33:18.353+03:00 [gateway] [plugins] extension entry escapes package directory: ./setup-entry.js (source=C:\Users\User\clawdbot\dist\extensions\zalouser)
+2026-04-02T20:33:18.360+03:00 [gateway] [plugins] extension entry escapes package directory: ./index.js (source=C:\Users\User\clawdbot\dist\extensions\zalouser)

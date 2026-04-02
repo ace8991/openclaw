@@ -46,6 +46,7 @@ const allowedAttrs = [
   "src",
   "alt",
   "data-code",
+  "data-ace-path",
   "type",
   "aria-label",
 ];
@@ -184,22 +185,46 @@ htmlEscapeRenderer.code = ({
   lang?: string;
   escaped?: boolean;
 }) => {
-  const langClass = lang ? ` class="language-${escapeHtml(lang)}"` : "";
+  const info = lang?.trim() ?? "";
+  const infoParts = info.split(/\s+/).filter(Boolean);
+  const firstInfo = infoParts[0] ?? "";
+  const filename =
+    infoParts.length > 1
+      ? infoParts.slice(1).join(" ")
+      : /[./\\]/.test(firstInfo)
+        ? firstInfo
+        : "";
+  const language =
+    infoParts.length > 1 || !/[./\\]/.test(firstInfo) ? firstInfo : "";
+  const langClass = language ? ` class="language-${escapeHtml(language)}"` : "";
   const safeText = escaped ? text : escapeHtml(text);
   const codeBlock = `<pre><code${langClass}>${safeText}</code></pre>`;
-  const langLabel = lang ? `<span class="code-block-lang">${escapeHtml(lang)}</span>` : "";
+  const labels = [
+    filename ? `<span class="code-block-file">${escapeHtml(filename)}</span>` : "",
+    language ? `<span class="code-block-lang">${escapeHtml(language)}</span>` : "",
+  ]
+    .filter(Boolean)
+    .join("");
   const attrSafe = text
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+  const fileAttr = filename
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
   const copyBtn = `<button type="button" class="code-block-copy" data-code="${attrSafe}" aria-label="Copy code"><span class="code-block-copy__idle">Copy</span><span class="code-block-copy__done">Copied!</span></button>`;
-  const header = `<div class="code-block-header">${langLabel}${copyBtn}</div>`;
+  const aceBtn = filename
+    ? `<button type="button" class="code-block-open-ace" data-code="${attrSafe}" data-ace-path="${fileAttr}" aria-label="Open in Ace Code">Open in Ace Code</button>`
+    : "";
+  const header = `<div class="code-block-header">${labels}<div class="code-block-actions">${aceBtn}${copyBtn}</div></div>`;
 
   const trimmed = text.trim();
   const isJson =
-    lang === "json" ||
-    (!lang &&
+    language === "json" ||
+    (!language &&
       ((trimmed.startsWith("{") && trimmed.endsWith("}")) ||
         (trimmed.startsWith("[") && trimmed.endsWith("]"))));
 

@@ -75,6 +75,7 @@ export type ChatProps = {
   canSend: boolean;
   disabledReason: string | null;
   error: string | null;
+  projectBadge?: { name: string; color?: string } | null;
   sessions: SessionsListResult | null;
   focusMode: boolean;
   sidebarOpen?: boolean;
@@ -87,6 +88,7 @@ export type ChatProps = {
   onAttachmentsChange?: (attachments: ChatAttachment[]) => void;
   showNewMessages?: boolean;
   onScrollToBottom?: () => void;
+  onOpenInAceCode?: (filename: string, content: string) => void;
   onRefresh: () => void;
   onToggleFocusMode: () => void;
   getDraft?: () => string;
@@ -934,16 +936,26 @@ export function renderChat(props: ChatProps) {
   const splitRatio = props.splitRatio ?? 0.6;
   const sidebarOpen = Boolean(props.sidebarOpen && props.onCloseSidebar);
 
-  const handleCodeBlockCopy = (e: Event) => {
-    const btn = (e.target as HTMLElement).closest(".code-block-copy");
-    if (!btn) {
+  const handleThreadClick = (e: Event) => {
+    const aceBtn = (e.target as HTMLElement).closest(".code-block-open-ace");
+    if (aceBtn) {
+      const el = aceBtn as HTMLElement;
+      const filePath = el.dataset.acePath ?? "";
+      const code = el.dataset.code ?? "";
+      if (filePath && props.onOpenInAceCode) {
+        props.onOpenInAceCode(filePath, code);
+      }
       return;
     }
-    const code = (btn as HTMLElement).dataset.code ?? "";
+    const copyBtn = (e.target as HTMLElement).closest(".code-block-copy");
+    if (!copyBtn) {
+      return;
+    }
+    const code = (copyBtn as HTMLElement).dataset.code ?? "";
     navigator.clipboard.writeText(code).then(
       () => {
-        btn.classList.add("copied");
-        setTimeout(() => btn.classList.remove("copied"), 1500);
+        copyBtn.classList.add("copied");
+        setTimeout(() => copyBtn.classList.remove("copied"), 1500);
       },
       () => {},
     );
@@ -958,7 +970,7 @@ export function renderChat(props: ChatProps) {
       role="log"
       aria-live="polite"
       @scroll=${props.onChatScroll}
-      @click=${handleCodeBlockCopy}
+      @click=${handleThreadClick}
     >
       <div class="chat-thread-inner">
       ${
@@ -1182,6 +1194,17 @@ export function renderChat(props: ChatProps) {
       >
       ${props.disabledReason ? html`<div class="callout">${props.disabledReason}</div>` : nothing}
       ${props.error ? html`<div class="callout danger">${props.error}</div>` : nothing}
+      ${props.projectBadge
+        ? html`
+            <div
+              class="chat-project-badge"
+              style=${props.projectBadge.color ? `--project-color:${props.projectBadge.color}` : ""}
+            >
+              ${icons.folder}
+              <span>CoWork: ${props.projectBadge.name}</span>
+            </div>
+          `
+        : nothing}
 
       ${
         props.focusMode
