@@ -52,6 +52,13 @@ export type AceCodeProps = {
   autoAccept?: boolean;
   onToggleAutoAccept?: () => void;
   onCreatePR?: () => void;
+  // Sidebar props
+  sessions?: Array<{ key: string; label?: string; preview?: string; updatedAt?: number }>;
+  currentSessionKey?: string;
+  assistantName?: string;
+  currentModel?: string;
+  onNewSession?: () => void;
+  onSwitchSession?: (key: string) => void;
 };
 
 function langFromName(name: string): string {
@@ -642,18 +649,103 @@ function renderAceComposerBar(props: AceCodeProps): TemplateResult {
   `;
 }
 
+// ─── Code Page Sidebar (Claude.ai style) ─────────────────────────────────────
+function renderCodeSidebar(props: AceCodeProps): TemplateResult {
+  const sessions = (props.sessions ?? [])
+    .filter((s) => !s.key.startsWith("heartbeat") && !s.key.startsWith("cron:"))
+    .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+    .slice(0, 12);
+
+  return html`
+    <aside class="cla-sidebar">
+      <!-- Fixed actions -->
+      <nav class="cla-nav">
+        <button class="cla-nav-item cla-nav-item--primary" @click=${props.onNewSession}>
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M7.5 4.5v6M4.5 7.5h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Nouvelle session</span>
+        </button>
+        <button class="cla-nav-item">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4"/><path d="M10 10L13.5 13.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <span>Rechercher</span>
+        </button>
+        <button class="cla-nav-item">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M7.5 4v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <span>Programmé</span>
+        </button>
+        <button class="cla-nav-item">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M13.5 1.5L1 6.5l5 2.5L8.5 14l5-12.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          <span>Dispatch</span>
+        </button>
+      </nav>
+
+      <div class="cla-separator"></div>
+
+      <button class="cla-nav-item">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M2 13c0-2.8 2.5-4.5 5.5-4.5S13 10.2 13 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <span>Personnaliser</span>
+      </button>
+
+      <!-- Projects section -->
+      <div class="cla-section-header">
+        <span>Tous les projets</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5L6 8l4-3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </div>
+
+      <!-- History -->
+      ${sessions.length > 0 ? html`
+        <div class="cla-section-label">Aujourd'hui</div>
+        ${sessions.map((s) => {
+          const isActive = s.key === (props.currentSessionKey ?? "");
+          const label = s.label?.trim() || s.preview?.trim()?.slice(0, 38) || s.key.replace("agent:main:", "").slice(0, 28) || "Nouvelle session";
+          return html`
+            <button
+              class="cla-history-item ${isActive ? "cla-history-item--active" : ""}"
+              @click=${() => props.onSwitchSession?.(s.key)}
+              title=${label}
+            >
+              <span class="cla-dot"></span>
+              <span class="cla-history-label">${label}</span>
+              ${isActive ? html`<svg class="cla-cloud" width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2.5 9A2.5 2.5 0 013.5 4.2a3 3 0 016 .5A2 2 0 019 9H2.5z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>` : nothing}
+            </button>
+          `;
+        })}
+      ` : nothing}
+
+      <!-- User profile -->
+      <div class="cla-user">
+        <div class="cla-avatar">CE</div>
+        <div class="cla-user-info">
+          <span class="cla-user-name">Carl Enockson Alexis</span>
+          <span class="cla-user-plan">Forfait Pro</span>
+        </div>
+        <div class="cla-user-btns">
+          <button class="cla-user-btn" title="Télécharger">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v9M4 7l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="cla-user-btn" title="Plus">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 9l5-5 5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+  `;
+}
+
 export function renderAceCode(props: AceCodeProps): TemplateResult {
   return html`
-    <div class="ace-panel">
-      ${renderWorkspaceHeader(props)}
-      <div class="ace-workspace">
-        ${renderFileSidebar(props)}
-        <div class="ace-main">
-          ${props.error ? html`<div class="ace-inline-error">${props.error}</div>` : nothing}
-          ${renderTabBar(props)}
-          ${renderFileContent(props)}
-          ${renderTerminal(props)}
-          ${renderAceComposerBar(props)}
+    <div class="cla-page-layout">
+      ${renderCodeSidebar(props)}
+      <div class="ace-panel">
+        ${renderWorkspaceHeader(props)}
+        <div class="ace-workspace">
+          ${renderFileSidebar(props)}
+          <div class="ace-main">
+            ${props.error ? html`<div class="ace-inline-error">${props.error}</div>` : nothing}
+            ${renderTabBar(props)}
+            ${renderFileContent(props)}
+            ${renderTerminal(props)}
+            ${renderAceComposerBar(props)}
+          </div>
         </div>
       </div>
     </div>
