@@ -33,6 +33,25 @@ import {
   updateApiKeyForm,
 } from "./controllers/api-keys.ts";
 import { loadChannels } from "./controllers/channels.ts";
+import {
+  clearAceCodeTerminal,
+  closeAceCodeTab,
+  loadAceCode,
+  openAceCodeFile,
+  runAceCodeCommand,
+  sendAceCodeMessage,
+  toggleAceCodeSidebar,
+} from "./controllers/ace-code.ts";
+import {
+  addFilesToCoWorkProject,
+  createCoWorkProject,
+  deleteCoWorkProject,
+  openCoWorkProjectInChat,
+  removeFileFromCoWorkProject,
+  selectCoWorkProject,
+  updateCoWorkProject,
+  loadCoWorkProjects,
+} from "./controllers/cowork.ts";
 import { loadChatHistory } from "./controllers/chat.ts";
 import {
   applyConfig,
@@ -132,6 +151,8 @@ function createLazy<T>(loader: () => Promise<T>): () => T | null {
   };
 }
 
+const lazyAceCode = createLazy(() => import("./views/ace-code.ts"));
+const lazyCoWork = createLazy(() => import("./views/cowork.ts"));
 const lazyAgents = createLazy(() => import("./views/agents.ts"));
 const lazyApiKeys = createLazy(() => import("./views/api-keys.ts"));
 const lazyChannels = createLazy(() => import("./views/channels.ts"));
@@ -318,6 +339,8 @@ export function renderApp(state: AppViewState) {
   const cronNext = state.cronStatus?.nextWakeAtMs ?? null;
   const chatDisabledReason = state.connected ? null : t("chat.disconnected");
   const isChat = state.tab === "chat";
+  const isAceCode = state.tab === "aceCode";
+  const isCoWork = state.tab === "coWork";
   const chatFocus = isChat && (state.settings.chatFocusMode || state.onboarding);
   const navDrawerOpen = Boolean(state.navDrawerOpen && !chatFocus && !state.onboarding);
   const navCollapsed = Boolean(state.settings.navCollapsed && !navDrawerOpen);
@@ -1994,6 +2017,73 @@ export function renderApp(state: AppViewState) {
                   onRefresh: () => loadLogs(state, { reset: true }),
                   onExport: (lines, label) => state.exportLogs(lines, label),
                   onScroll: (event) => state.handleLogsScroll(event),
+                }),
+              )
+            : nothing
+        }
+
+        ${
+          state.tab === "aceCode"
+            ? lazyRender(lazyAceCode, (m) =>
+                m.renderAceCode({
+                  workspacePath: state.aceCodeWorkspacePath,
+                  files: state.aceCodeFiles,
+                  diffs: state.aceCodeDiffs,
+                  terminalLines: state.aceCodeTerminalLines,
+                  activeFile: state.aceCodeActiveFile,
+                  activeFileContent: state.aceCodeActiveFileContent,
+                  openTabs: state.aceCodeOpenTabs,
+                  chatMessages: (state as unknown as { aceCodeChatMessages?: import("./views/ace-code.ts").ChatMessage[] }).aceCodeChatMessages ?? [],
+                  chatLoading: state.chatLoading || state.chatSending,
+                  connected: state.connected,
+                  sidebarOpen: state.aceCodeSidebarOpen,
+                  error: state.aceCodeError,
+                  // Claude.ai sidebar props
+                  sessions: (state.sessionsResult?.sessions ?? []).map((s) => ({
+                    key: (s as unknown as { key: string }).key ?? "",
+                    label: (s as unknown as { label?: string }).label,
+                    preview: (s as unknown as { preview?: string }).preview,
+                    updatedAt: (s as unknown as { updatedAt?: number }).updatedAt,
+                  })),
+                  currentSessionKey: state.sessionKey,
+                  currentModel: state.chatThinkingLevel ?? "gpt-4.1",
+                  onNewSession: () => {
+                    state.handleSendChat("/new", { restoreDraft: false });
+                    state.setTab("chat");
+                  },
+                  onSwitchSession: (key: string) => {
+                    switchChatSession(state, key);
+                    state.setTab("chat");
+                  },
+                  onFileSelect: (path: string) => { void openAceCodeFile(state, path); },
+                  onCloseTab: (p: string) => closeAceCodeTab(state, p),
+                  onRunCommand: (cmd: string) => { void runAceCodeCommand(state, cmd); },
+                  onClear: () => clearAceCodeTerminal(state),
+                  onRefreshFiles: () => { void loadAceCode(state); },
+                  onSendMessage: (msg: string) => { void sendAceCodeMessage(state, msg); },
+                  onToggleSidebar: () => toggleAceCodeSidebar(state),
+                }),
+              )
+            : nothing
+        }
+
+        ${
+          state.tab === "coWork"
+            ? lazyRender(lazyCoWork, (m) =>
+                m.renderCoWork({
+                  projects: state.coWorkProjects,
+                  activeProjectId: state.activeProjectId,
+                  connected: state.connected,
+                  loading: state.coWorkLoading,
+                  error: state.coWorkError,
+                  projectsPath: state.coWorkProjectsPath,
+                  onCreateProject: () => { void createCoWorkProject(state); },
+                  onSelectProject: (id: string) => selectCoWorkProject(state, id),
+                  onDeleteProject: (id: string) => { void deleteCoWorkProject(state, id); },
+                  onUpdateProject: (project) => { void updateCoWorkProject(state, project); },
+                  onAddFiles: (projectId: string, files: File[]) => { void addFilesToCoWorkProject(state, projectId, files); },
+                  onRemoveFile: (projectId: string, fileName: string) => { void removeFileFromCoWorkProject(state, projectId, fileName); },
+                  onOpenInChat: (projectId: string) => { void openCoWorkProjectInChat(state, projectId); },
                 }),
               )
             : nothing
