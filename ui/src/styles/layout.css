@@ -1519,3 +1519,84 @@
   border-radius: 2px;
 }
 /* ��������������������������������������������������������������������������� */
+
+/* ============================================================
+   TOPBAR PILL TABS — Chat / Cowork / Code
+   ============================================================ */
+.topbar-tab-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--color-background-tertiary, rgba(255,255,255,0.08));
+  border-radius: 8px;
+  padding: 2px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.topbar-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.topbar-tab:hover {
+  color: var(--color-text-primary);
+}
+
+.topbar-tab--active {
+  background: var(--color-background-primary, #fff);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+/* Dark theme override */
+[data-theme="dark"] .topbar-tab--active,
+[data-theme-mode="dark"] .topbar-tab--active {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+
+/* Topnav must be relative for absolute centering */
+.topnav-shell {
+  position: relative;
+}
+
+/* ============================================================
+   FULLPAGE MODE — hide sidebar, nav, expand main
+   ============================================================ */
+.shell--fullpage .shell-nav { display: none !important; }
+.shell--fullpage .shell-nav-backdrop { display: none !important; }
+
+.shell--fullpage .content {
+  margin-left: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Main content takes full width in fullpage */
+.shell--fullpage > .content {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Hide the topbar nav toggle button when fullpage */
+.shell--fullpage .topbar-nav-toggle {
+  visibility: hidden;
+  pointer-events: none;
+}
+/* ============================================================ */

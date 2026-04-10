@@ -438,7 +438,7 @@ export function renderApp(state: AppViewState) {
       },
     })}
     <div
-      class="shell ${isChat ? "shell--chat" : ""} ${chatFocus ? "shell--chat-focus" : ""} ${navCollapsed ? "shell--nav-collapsed" : ""} ${navDrawerOpen ? "shell--nav-drawer-open" : ""} ${state.onboarding ? "shell--onboarding" : ""}"
+      class="shell ${isChat ? "shell--chat" : ""} ${isAceCode ? "shell--fullpage" : ""} ${isCoWork ? "shell--fullpage" : ""} ${chatFocus ? "shell--chat-focus" : ""} ${navCollapsed ? "shell--nav-collapsed" : ""} ${navDrawerOpen ? "shell--nav-drawer-open" : ""} ${state.onboarding ? "shell--onboarding" : ""}"
     >
       <button
         type="button"
@@ -465,6 +465,26 @@ export function renderApp(state: AppViewState) {
           <div class="topnav-shell__content">
             <dashboard-header .tab=${state.tab}></dashboard-header>
           </div>
+
+          <!-- ── Chat / Cowork / Code pill tabs ── -->
+          <div class="topbar-tab-switcher">
+            <a
+              class="topbar-tab ${state.tab === "chat" ? "topbar-tab--active" : ""}"
+              href=${pathForTab("chat", state.basePath)}
+              @click=${(e: MouseEvent) => { e.preventDefault(); state.setTab("chat"); }}
+            >Chat</a>
+            <a
+              class="topbar-tab ${state.tab === "coWork" ? "topbar-tab--active" : ""}"
+              href=${pathForTab("coWork", state.basePath)}
+              @click=${(e: MouseEvent) => { e.preventDefault(); state.setTab("coWork"); }}
+            >Cowork</a>
+            <a
+              class="topbar-tab ${state.tab === "aceCode" ? "topbar-tab--active" : ""}"
+              href=${pathForTab("aceCode", state.basePath)}
+              @click=${(e: MouseEvent) => { e.preventDefault(); state.setTab("aceCode"); }}
+            >Code</a>
+          </div>
+
           <div class="topnav-shell__actions">
             <button
               class="topbar-search"
@@ -484,7 +504,7 @@ export function renderApp(state: AppViewState) {
           </div>
         </div>
       </header>
-      <div class="shell-nav">
+      ${!isAceCode && !isCoWork ? html`<div class="shell-nav">
         <aside class="sidebar ${navCollapsed ? "sidebar--collapsed" : ""}">
           <div class="sidebar-shell">
             <div class="sidebar-shell__header">
@@ -601,7 +621,8 @@ export function renderApp(state: AppViewState) {
             </div>
           </div>
         </aside>
-      </div>
+      </div>` : nothing}
+
       <main class="content ${isChat ? "content--chat" : ""}">
         ${
           state.updateAvailable &&
